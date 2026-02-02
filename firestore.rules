@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Utility functions ---
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return request.auth != null && request.auth.token.admin == true; }
+
+    // --- Deny backend-only writes from clients ---
+    match /sendHistory/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false; // backend-only (Phase-2)
+    }
+
+    // --- Staff collection: authenticated create, owner or admin update/delete ---
+    match /staff/{staffId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.name is string &&
+        request.resource.data.email is string &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // --- Templates: authenticated create; owner/admin update/delete ---
+    match /templates/{tplId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.subject is string &&
+        request.resource.data.htmlBody is string &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // --- Rules: client may create/edit rule metadata but automation is server-side in Phase-2 ---
+    match /rules/{ruleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.name is string && request.resource.data.templateId is string && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // --- Unsubscribe tokens: clients may create token docs when composing emails ---
+    match /unsubscribeTokens/{token} {
+      allow read: if true; // public read so static unsubscribe page can validate
+      allow create: if isSignedIn() &&
+        request.resource.data.email is string &&
+        request.resource.data.expiresAt is timestamp &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.used == false;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // --- Suppressions: allow unauthenticated write ONLY when a valid token exists ---
+    match /suppressions/{email} {
+      allow read: if isSignedIn();
+
+      allow create: if (
+        // either an authenticated user creating suppression OR a valid token was presented
+        (isSignedIn() && request.resource.data.createdBy == request.auth.uid)
+        ||
+        (
+          // token-based unauthenticated unsubscribe flow
+          request.resource.data.token is string
+          && get(/databases/$(database)/documents/unsubscribeTokens/$(request.resource.data.token)).data.email == request.resource.data.email
+          && get(/databases/$(database)/documents/unsubscribeTokens/$(request.resource.data.token)).data.used == false
+          && get(/databases/$(database)/documents/unsubscribeTokens/$(request.resource.data.token)).data.expiresAt > request.time
+        )
+      ) &&
+      // basic shape checks
+      request.resource.data.email is string
+      && request.resource.data.reason is string;
+
+      // disallow client-side setting of audit fields
+      allow update, delete: if isAdmin();
+    }
+
+    // SchedulerRuns used for observability (CI / dry-run writes allowed)
+    match /schedulerRuns/{id} {
+      allow create: if isSignedIn() || (request.auth == null && request.resource.data.dryRun == true);
+      allow read: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Default: deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

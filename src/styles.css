@@ -1,0 +1,10 @@
+:root {
+  --app-max-width: 1100px;
+}
+body {
+  font-family: Inter, Roboto, -apple-system, "Segoe UI", "Helvetica Neue", Arial;
+}
+.app-shell {
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+}
