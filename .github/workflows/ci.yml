@@ -18,11 +18,12 @@ jobs:
         run: |
           set -euo pipefail
           echo "Scanning workflows for deprecated action versions..."
-          # look for common deprecated action versions and show context (if any found, fail)
-          DEPRECATED_PATTERN='actions/upload-artifact@v3|actions/cache@v1'
-          if grep -RIn --line-number --color=always -E "$DEPRECATED_PATTERN" .github/workflows >/dev/null 2>&1; then
+          # look for deprecated action versions only when they appear in a `uses:` line
+          # (this avoids matching the PATTERN variable defined in this script)
+          DEPRECATED_USAGE_PATTERN='uses:[[:space:]]*.*actions/(upload-artifact@v3|cache@v1)'
+          if grep -RIn --line-number -E "$DEPRECATED_USAGE_PATTERN" .github/workflows >/dev/null 2>&1; then
             echo "\nDeprecated GitHub Action versions detected in workflow files:\n"
-            grep -RIn --line-number -E "$DEPRECATED_PATTERN" .github/workflows || true
+            grep -RIn --line-number -E "$DEPRECATED_USAGE_PATTERN" .github/workflows || true
             echo "\nAction required: replace deprecated action versions (e.g. actions/upload-artifact@v3 -> actions/upload-artifact@v4)."
             exit 1
           fi
