@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 18
       - name: Install
-        run: npm ci --no-optional
+        run: npm ci
       - name: Scheduler dry-run
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
