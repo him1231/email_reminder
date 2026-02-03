@@ -29,6 +29,16 @@ export const App: React.FC = () => {
         </Stack>
       </Stack>
 
+      {/* dev setup banner (appears when required VITE_ vars are missing) */}
+      <Box>
+        {/* component imported lazily to keep test-time behaviour predictable */}
+        <React.Suspense fallback={null}>
+          {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+          {/* @ts-ignore - conditional import is safe */}
+          {require('../components/DevSetupBanner').DevSetupBanner()}
+        </React.Suspense>
+      </Box>
+
       <Box>
         {route === "staff" && <StaffList />}
         {route === "templates" && <TemplateEditor />}
