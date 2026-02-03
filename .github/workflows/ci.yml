@@ -23,10 +23,69 @@ jobs:
         run: npm run lint
       - name: Unit tests
         run: npm test -- --coverage
-      - name: Start Firestore emulator & run integration tests
-        env:
-          FIREBASE_PROJECT_ID: demo
+
+      - name: Check required secrets for emulator
+        id: check-emulator-secrets
         run: |
-          npx firebase emulators:start --only firestore --project demo &
+          # set has_secrets=true if FIREBASE_PROJECT_ID secret is available (guards forked PRs)
+          if [ -n "${{ secrets.FIREBASE_PROJECT_ID }}" ]; then echo "has_secrets=true" >> $GITHUB_OUTPUT; else echo "has_secrets=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Start Firestore emulator & run integration tests
+        if: ${{ steps.check-emulator-secrets.outputs.has_secrets == 'true' }}
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          npx firebase emulators:start --only firestore --project "$FIREBASE_PROJECT_ID" &
           sleep 4
           npm run test -- --testPathPattern=tests/integration --runInBand
+
+      - name: Skip emulator-based integration tests (no secrets)
+        if: ${{ steps.check-emulator-secrets.outputs.has_secrets == 'false' }}
+        run: |
+          echo "FIREBASE_PROJECT_ID secret not present — skipping emulator-based integration tests (expected for forked PRs)."
+
+  visual:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    # inject runtime VITE_ vars from repository Secrets when available (safe to omit for forked PRs)
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install
+        run: npm ci
+
+      - name: Check required secrets for visual regression
+        id: check-visual-secrets
+        run: |
+          # require VITE_FIREBASE_API_KEY + VITE_FIREBASE_PROJECT_ID for meaningful visual E2E
+          if [ -n "${{ secrets.VITE_FIREBASE_API_KEY }}" ] && [ -n "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" ]; then echo "has_secrets=true" >> $GITHUB_OUTPUT; else echo "has_secrets=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Serve dist
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'true' }}
+        run: npx http-server ./dist -p 5173 --silent --cors --bind 0.0.0.0 &
+
+      - name: Wait for server
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'true' }}
+        run: npx wait-on http://localhost:5173 --timeout 15000
+
+      - name: Run visual regression (Playwright)
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'true' }}
+        run: npx playwright test --project=chromium
+        env:
+          CI: true
+
+      - name: Skip visual regression (no secrets)
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'false' }}
+        run: echo "Playwright visual tests skipped because required secrets are not available (forked PR or secrets not configured)."

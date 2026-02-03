@@ -23,6 +23,8 @@ Helpful checks:
 Helpful checks:
 - Use the **Web app** credentials from Firebase Console → Project settings → Your apps.
 - Add `localhost` and `127.0.0.1` to Authentication → Authorized domains.
-- For CI / GitHub Pages: add repo secrets named `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` and forward them into the build environment.
+- For CI / GitHub Pages: add repository Secrets and map them into Actions (names used by the workflow): `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` and `FIREBASE_PROJECT_ID` (for emulator runs). The workflow is fork‑safe: emulator and visual steps are gated and will be skipped for forked PRs when secrets are not available.
+
+  Recommended: add your project's Authorized Domains (Firebase Console → Authentication) including `your-org.github.io` and `localhost`.
 
 For full setup and the Phase‑1 runbook see `docs/PHASE1-RUNBOOK.md`.
