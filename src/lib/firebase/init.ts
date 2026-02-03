@@ -30,6 +30,20 @@ export let db: any;
 // Export a helper so the app can render a friendly dev-banner when config is missing
 export const firebaseConfigIsValid = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 
+// Runtime (non-secret) diagnostic for developers: expose presence-only flags so
+// the running app (or developer console) can quickly confirm whether Vite
+// injected the expected VITE_ values. This deliberately never exposes secrets.
+if (typeof window !== 'undefined') {
+  // @ts-ignore - attach a dev-only probe for quick debugging
+  window.__APP_ENV = {
+    firebaseConfigIsValid: Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId),
+    hasProjectId: Boolean(firebaseConfig.projectId),
+    hasApiKey: Boolean(firebaseConfig.apiKey),
+  };
+  // eslint-disable-next-line no-console
+  console.debug('[env] app env probe:', { firebaseConfigIsValid: window.__APP_ENV.firebaseConfigIsValid, hasProjectId: window.__APP_ENV.hasProjectId });
+}
+
 // In Jest/unit-test environment don't initialize the real Firebase SDK — return lightweight stubs.
 if (_nodeEnv && _nodeEnv.JEST_WORKER_ID) {
   // test-friendly stubs so components can import without contacting Firebase
@@ -52,18 +66,30 @@ if (_nodeEnv && _nodeEnv.JEST_WORKER_ID) {
       : `Ensure your build injects the VITE_... variables (GitHub Actions: set repo secrets prefixed with VITE_ and forward them to the build job).`;
 
     const msg = `Firebase config error — missing env: ${missing.join(', ')}. ${hint}`;
-    // Provide a clear console error and throw so callers see an actionable message instead of the
-    // opaque `auth/invalid-api-key` Firebase error.
+    // Log an actionable error but DO NOT throw during module import — throwing
+    // prevents the React tree (and our dev-banner) from rendering.
     // eslint-disable-next-line no-console
     console.error(msg);
-    throw new Error(msg);
+
+    // Provide safe, inert stubs so consumers that check `auth.currentUser`
+    // or render the UI won't crash during import. Any attempt to call
+    // SDK methods will still be a clear runtime error (safer than a hard
+    // import-time throw which prevents the banner from showing).
+    auth = { currentUser: undefined } as any;
+    googleProvider = {} as any;
+    db = {} as any;
+
+    // Do not initialize the real SDK when config is missing; variables already stubbed above.
+    // Initialization will run only when all required envs are present.
   }
 
-  if (!getApps().length) {
-    initializeApp(firebaseConfig as any);
-  }
+  if (!missing.length) {
+    if (!getApps().length) {
+      initializeApp(firebaseConfig as any);
+    }
 
-  auth = getAuth();
-  googleProvider = new GoogleAuthProvider();
-  db = getFirestore();
+    auth = getAuth();
+    googleProvider = new GoogleAuthProvider();
+    db = getFirestore();
+  }
 }
