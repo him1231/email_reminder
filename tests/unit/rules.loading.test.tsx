@@ -21,15 +21,8 @@ describe('RuleList — loading & editor', () => {
   afterEach(() => jest.clearAllMocks());
 
   it('shows loading placeholder then opens editor when Add is clicked', async () => {
-    (mockOnSnapshot as jest.Mock).mockImplementation((arg, onNext: any) => {
-      // first call is templates, second is rules
-      if (arg && String(arg).includes('templates')) {
-        onNext({ docs: [] });
-        return jest.fn();
-      }
-      onNext({ docs: [] });
-      return jest.fn();
-    });
+    // simulate "still loading" by making onSnapshot a no-op (snapshot arrives later)
+    (mockOnSnapshot as jest.Mock).mockImplementation(() => jest.fn());
 
     render(
       <ThemeProvider theme={theme}>

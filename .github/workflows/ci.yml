@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail on deprecated workflow actions
+        run: |
+          set -euo pipefail
+          echo "Scanning workflows for deprecated action versions..."
+          # look for deprecated action versions only when they appear in a `uses:` line
+          # (this avoids matching the PATTERN variable defined in this script)
+          DEPRECATED_USAGE_PATTERN='uses:[[:space:]]*.*actions/(upload-artifact@v3|cache@v1)'
+          if grep -RIn --line-number -E "$DEPRECATED_USAGE_PATTERN" .github/workflows >/dev/null 2>&1; then
+            echo "\nDeprecated GitHub Action versions detected in workflow files:\n"
+            grep -RIn --line-number -E "$DEPRECATED_USAGE_PATTERN" .github/workflows || true
+            echo "\nAction required: replace deprecated action versions (e.g. actions/upload-artifact@v3 -> actions/upload-artifact@v4)."
+            exit 1
+          fi
+          echo "No deprecated workflow action versions found."
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test -- --coverage
+
+      - name: Check required secrets for emulator
+        id: check-emulator-secrets
+        run: |
+          # set has_secrets=true if FIREBASE_PROJECT_ID secret is available (guards forked PRs)
+          if [ -n "${{ secrets.FIREBASE_PROJECT_ID }}" ]; then echo "has_secrets=true" >> $GITHUB_OUTPUT; else echo "has_secrets=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Start Firestore emulator & run integration tests
+        if: ${{ steps.check-emulator-secrets.outputs.has_secrets == 'true' }}
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          npx firebase emulators:start --only firestore --project "$FIREBASE_PROJECT_ID" &
+          sleep 4
+          npm run test -- --testPathPattern=tests/integration --runInBand
+
+      - name: Skip emulator-based integration tests (no secrets)
+        if: ${{ steps.check-emulator-secrets.outputs.has_secrets == 'false' }}
+        run: |
+          echo "FIREBASE_PROJECT_ID secret not present — skipping emulator-based integration tests (expected for forked PRs)."
+
+  visual:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    # inject runtime VITE_ vars from repository Secrets when available (safe to omit for forked PRs)
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install
+        run: npm ci
+
+      - name: Check required secrets for visual regression
+        id: check-visual-secrets
+        run: |
+          # require VITE_FIREBASE_API_KEY + VITE_FIREBASE_PROJECT_ID for meaningful visual E2E
+          if [ -n "${{ secrets.VITE_FIREBASE_API_KEY }}" ] && [ -n "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" ]; then echo "has_secrets=true" >> $GITHUB_OUTPUT; else echo "has_secrets=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Serve dist
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'true' }}
+        run: npx http-server ./dist -p 5173 --silent --cors --bind 0.0.0.0 &
+
+      - name: Wait for server
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'true' }}
+        run: npx wait-on http://localhost:5173 --timeout 15000
+
+      - name: Run visual regression (Playwright)
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'true' }}
+        run: npx playwright test --project=chromium
+        env:
+          CI: true
+
+      - name: Skip visual regression (no secrets)
+        if: ${{ steps.check-visual-secrets.outputs.has_secrets == 'false' }}
+        run: echo "Playwright visual tests skipped because required secrets are not available (forked PR or secrets not configured)."
