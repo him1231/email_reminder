@@ -6,6 +6,14 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { return request.auth != null && request.auth.token.admin == true; }
 
+    // Emulator helper: when developing against the local emulator you can create
+    // a document `/ _emulator/allowPublicRead { enabled: true }` to allow
+    // unauthenticated reads. This document MUST NOT exist in production.
+    function isEmulatorOpen() {
+      return exists(/databases/$(database)/documents/_emulator/allowPublicRead)
+        && get(/databases/$(database)/documents/_emulator/allowPublicRead).data.enabled == true;
+    }
+
     // --- Deny backend-only writes from clients ---
     match /sendHistory/{docId} {
       allow read: if isSignedIn();
@@ -14,7 +22,7 @@ service cloud.firestore {
 
     // --- Staff collection: authenticated create, owner or admin update/delete ---
     match /staff/{staffId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isEmulatorOpen();
       allow create: if isSignedIn() &&
         request.resource.data.name is string &&
         request.resource.data.email is string &&
@@ -25,7 +33,7 @@ service cloud.firestore {
 
     // --- Templates: authenticated create; owner/admin update/delete ---
     match /templates/{tplId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isEmulatorOpen();
       allow create: if isSignedIn() &&
         request.resource.data.subject is string &&
         request.resource.data.htmlBody is string &&
@@ -36,7 +44,7 @@ service cloud.firestore {
 
     // --- Rules: client may create/edit rule metadata but automation is server-side in Phase-2 ---
     match /rules/{ruleId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isEmulatorOpen();
       allow create: if isSignedIn() && request.resource.data.name is string && request.resource.data.templateId is string && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
     }
@@ -80,7 +88,7 @@ service cloud.firestore {
     // SchedulerRuns used for observability (CI / dry-run writes allowed)
     match /schedulerRuns/{id} {
       allow create: if isSignedIn() || (request.auth == null && request.resource.data.dryRun == true);
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isEmulatorOpen();
       allow delete: if isAdmin();
     }
 

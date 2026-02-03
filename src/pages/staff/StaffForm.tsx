@@ -3,7 +3,7 @@ import { Button, Grid, Stack, TextField } from "@mui/material";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../../lib/firebase/init";
+import { db, auth } from "../../lib/firebase/init";
 
 const StaffSchema = Yup.object().shape({
   name: Yup.string().required("Name is required"),
@@ -19,12 +19,14 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       validationSchema={StaffSchema}
       onSubmit={async (values, { setSubmitting }) => {
         try {
+          if (!auth.currentUser) throw new Error('not-authenticated');
           await addDoc(collection(db, "staff"), {
             name: values.name,
             staffNo: values.staffNo,
             email: values.email,
             contractEffectiveDate: new Date(values.contractEffectiveDate),
             createdAt: serverTimestamp(),
+            createdBy: auth.currentUser.uid,
           });
           onClose?.();
         } finally {

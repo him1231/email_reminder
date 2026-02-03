@@ -2,16 +2,10 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Resolve env values safely for both browser (import.meta.env) and Node/test (process.env).
-let _metaEnv: any | undefined;
-try {
-  // access import.meta.env via eval so TypeScript/node won't parse the `import.meta` token
-  // Vite will still provide import.meta.env at runtime in the browser
-  // eslint-disable-next-line no-eval, @typescript-eslint/no-explicit-any
-  _metaEnv = eval('typeof import !== "undefined" && import.meta && import.meta.env ? import.meta.env : undefined') as any;
-} catch (e) {
-  _metaEnv = undefined;
-}
+// Resolve env values safely for both browser (Vite-injected) and Node/test (process.env).
+// Vite can't statically replace env access inside eval, so we bridge it via index.html
+// into window.__VITE_ENV__ (see index.html).
+const _metaEnv: any | undefined = (typeof window !== 'undefined' && (window as any).__VITE_ENV__) ? (window as any).__VITE_ENV__ : undefined;
 const _nodeEnv = (typeof process !== 'undefined' && process.env) ? (process as any).env : undefined;
 
 const firebaseConfig = {

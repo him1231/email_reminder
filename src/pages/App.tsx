@@ -6,6 +6,9 @@ import { StaffList } from "./staff/StaffList";
 import { TemplateEditor } from "./templates/TemplateEditor";
 import { RuleList } from "./rules/RuleList";
 
+// Lazy-load the dev banner so the main app and tests don't eagerly execute browser-only code.
+const DevSetupBanner = React.lazy(() => import('../components/DevSetupBanner').then(m => ({ default: m.DevSetupBanner })));
+
 export const App: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   const [route, setRoute] = useState<"staff" | "templates" | "rules">("staff");
@@ -31,11 +34,8 @@ export const App: React.FC = () => {
 
       {/* dev setup banner (appears when required VITE_ vars are missing) */}
       <Box>
-        {/* component imported lazily to keep test-time behaviour predictable */}
         <React.Suspense fallback={null}>
-          {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-          {/* @ts-ignore - conditional import is safe */}
-          {require('../components/DevSetupBanner').DevSetupBanner()}
+          <DevSetupBanner />
         </React.Suspense>
       </Box>
 

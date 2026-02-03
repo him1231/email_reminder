@@ -7,28 +7,33 @@
  * Note: requires Firebase emulator running (the CI job will start the emulator).
  */
 
-import { initializeTestApp, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import fs from "fs";
+import { initializeTestEnvironment, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 
 const PROJECT_ID = "demo-unsubscribe-test";
+let testEnv: any;
+
+beforeAll(async () => {
+  testEnv = await initializeTestEnvironment({ projectId: PROJECT_ID, firestore: { rules: fs.readFileSync("./firestore.rules", "utf8") } });
+});
+
+afterAll(async () => await testEnv.cleanup());
 
 describe("unsubscribe token flow (emulator)", () => {
   it("allows token-based unsubscribe and marks token used", async () => {
-    const admin = initializeTestApp({ projectId: PROJECT_ID, auth: { uid: "admin", token: { admin: true } } });
-    const client = initializeTestApp({ projectId: PROJECT_ID }).auth ? initializeTestApp({ projectId: PROJECT_ID }) : initializeTestApp({ projectId: PROJECT_ID });
+    const adminCtx = testEnv.authenticatedContext("admin", { admin: true });
+    const clientCtx = testEnv.unauthenticatedContext();
 
-    const adminDb = getFirestore(admin);
-    const tokenRef = doc(adminDb, "unsubscribeTokens", "tok-test-1");
-    await setDoc(tokenRef, { email: "asha.tan+demo@gmail.com", expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), used: false, createdBy: "admin" });
+    const adminDb = adminCtx.firestore();
+    await adminDb.collection("unsubscribeTokens").doc("tok-test-1").set({ email: "asha.tan+demo@gmail.com", expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), used: false, createdBy: "admin" });
 
-    const clientDb = getFirestore(client);
+    const clientDb = clientCtx.firestore();
 
     // client writes suppression using the token
-    const suppressionRef = doc(clientDb, "suppressions", "asha.tan+demo@gmail.com");
-    await assertSucceeds(setDoc(suppressionRef, { email: "asha.tan+demo@gmail.com", reason: "user_unsubscribe", token: "tok-test-1" }));
+    const suppressionRef = clientDb.collection("suppressions").doc("asha.tan+demo@gmail.com");
+    await assertSucceeds(suppressionRef.set({ email: "asha.tan+demo@gmail.com", reason: "user_unsubscribe", token: "tok-test-1" }));
 
-    // token should be considered used only after client marks it (client flow sets used=true in transaction)
-    const tokenSnap = await getDoc(tokenRef);
-    expect(tokenSnap.exists()).toBe(true);
+    const tokenSnap = await adminDb.collection("unsubscribeTokens").doc("tok-test-1").get();
+    expect(tokenSnap.exists).toBeTruthy();
   });
 });
