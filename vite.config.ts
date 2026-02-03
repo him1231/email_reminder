@@ -4,8 +4,10 @@ import path from 'path';
 // Use async config + dynamic import for ESM-only plugins to avoid CJS/require issues in some environments
 export default defineConfig(async () => {
   const { default: react } = await import('@vitejs/plugin-react');
+  const base = process.env.VITE_BASE || '/';
 
   return {
+    base,
     plugins: [react()],
     resolve: {
       alias: {
