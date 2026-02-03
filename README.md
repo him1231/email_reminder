@@ -18,7 +18,16 @@ VITE_FIREBASE_API_KEY=AIza...YOUR_WEB_API_KEY...
 VITE_FIREBASE_PROJECT_ID=your-project-id
 VITE_FIREBASE_APP_ID=1:123456:web:abcdef
 ```
+Quick-start (choose one):
+- Recommended (explicit):
 
+  npm run dev:env
+
+  This uses `dotenv-cli` to load `.env.local` and start Vite (cross-shell).
+
+- Shell one-liner (no deps):
+
+  set -a && source .env.local && set +a && npm run dev
 Helpful checks:
 - Use the **Web app** credentials from Firebase Console → Project settings → Your apps.
 - Add `localhost` and `127.0.0.1` to Authentication → Authorized domains.
