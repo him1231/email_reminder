@@ -22,8 +22,8 @@ Demo steps (happy path)
 1. Sign in with Google (Firebase SSO).
 2. Create two staff records (use sample data in `docs/SAMPLE_DATA.md`).
 3. Create a template and confirm preview renders placeholders and `{{unsubscribeUrl}}`.
-4. Create a rule (mark remains Manual/Draft).
-5. Use the Manual Send button: open mail client or download HTML/CSV.
+4. Create a rule (mark remains Manual/Draft). Example: create a rule with tag `beta-users` and select a saved template.
+5. Use the Manual Send button: open mail client or download HTML/CSV. For rules, open the rule, preview the selected template, then click "Send / Export" on a sample recipient.
 6. Open the downloaded HTML locally and click the unsubscribe link — the unsubscribe page should write a suppression in the emulator.
 
 CI notes

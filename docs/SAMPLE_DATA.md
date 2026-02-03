@@ -27,6 +27,13 @@ Template
 
 Rule (demo/manual)
 - rule-001
+
+Example: rule-002
+- name: "Weekly digest (beta)"
+- templateId: "tpl-1"
+- filter: { tag: "beta-users" }
+- state: "manual"
+- createdBy: "user-1"
   - name: "90-day follow-up (demo)"
   - triggerType: relativeDate
   - field: contractEffectiveDate
