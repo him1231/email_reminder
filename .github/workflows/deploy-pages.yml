@@ -18,6 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,6 +27,27 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
+
+      - name: Validate required VITE_ envs (no secrets are printed)
+        run: |
+          missing=false
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID; do
+            if [ -z "${!v:-}" ]; then
+              echo "Missing required env: $v"
+              missing=true
+            else
+              echo "$v: present"
+            fi
+          done
+          if [ "$missing" = true ]; then
+            echo "One or more required VITE_ env vars are missing — failing the build.\nEnsure repository or environment secrets are set and the job has access to them." >&2
+            exit 1
+          fi
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
       - name: Build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
