@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Checkbox, CircularProgress, FormControlLabel, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { collection, getDocs, addDoc, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, writeBatch, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import Mustache from 'mustache';
 import { db } from '../../lib/firebase/init';
@@ -50,9 +50,10 @@ export const ComposeEmail: React.FC = () => {
     if (selectedTemplate) {
       const t = templates.find(t => t.id === selectedTemplate);
       if (t) {
-        // copy template subject/body into form state so validation and preview work
+        // copy template subject/htmlBody into form state so validation and preview work
         setSubject(t.subject || '');
-        setBody(t.body || '');
+        // support existing templates that may have used 'body' previously
+        setBody(t.htmlBody || t.body || '');
       }
     } else {
       // if template cleared, allow manual editing
@@ -93,7 +94,8 @@ export const ComposeEmail: React.FC = () => {
 
       // if saving template
       if (saveAsTemplate) {
-        await addDoc(collection(db, 'templates'), { name: templateName, subject, body, createdAt: now });
+        // use serverTimestamp and htmlBody and createdBy to satisfy Firestore rules
+        await addDoc(collection(db, 'templates'), { name: templateName, subject, htmlBody: body, createdAt: serverTimestamp(), createdBy: user.uid });
       }
 
       for (const id of selected) {
@@ -158,12 +160,9 @@ export const ComposeEmail: React.FC = () => {
           </>
         )}
 
-        {/* when a template is selected, show read-only preview fields */}
+        {/* when a template is selected, hide subject/body fields entirely (template mode) */}
         {selectedTemplate && (
-          <>
-            <TextField label="Subject (from template)" fullWidth value={subject} InputProps={{ readOnly: true }} />
-            <TextField label="Body (from template)" fullWidth multiline minRows={6} value={body} InputProps={{ readOnly: true }} />
-          </>
+          <></>
         )}
 
         <FormControlLabel control={<Checkbox checked={scheduledForNow} onChange={e => setScheduledForNow(e.target.checked)} />} label="Send now" />
