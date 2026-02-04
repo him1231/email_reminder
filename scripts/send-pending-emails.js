@@ -21,7 +21,15 @@ async function main() {
       process.exit(1);
     }
 
-    const serviceAccount = JSON.parse(sa);
+    // Support both raw JSON and base64-encoded JSON
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(sa);
+    } catch (e) {
+      // Try base64 decode
+      const decoded = Buffer.from(sa, 'base64').toString('utf-8');
+      serviceAccount = JSON.parse(decoded);
+    }
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     const db = admin.firestore();
 
