@@ -15,7 +15,8 @@
     "deploy:pages": "npm run build && gh-pages -d dist",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
-    "ci:visual": "npm run build && npx http-server ./dist -p 5173 & npx wait-on http://localhost:5173 && npx playwright test --project=chromium"
+    "ci:visual": "npm run build && npx http-server ./dist -p 5173 & npx wait-on http://localhost:5173 && npx playwright test --project=chromium",
+    "send-emails": "node scripts/send-pending-emails.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",
