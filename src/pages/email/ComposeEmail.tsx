@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Checkbox, CircularProgress, FormControlLabel, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { collection, getDocs, addDoc, writeBatch, Timestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import Mustache from 'mustache';
 import { db } from '../../lib/firebase/init';
 import StaffSelector from '../../components/StaffSelector';
@@ -49,9 +50,14 @@ export const ComposeEmail: React.FC = () => {
     if (selectedTemplate) {
       const t = templates.find(t => t.id === selectedTemplate);
       if (t) {
+        // copy template subject/body into form state so validation and preview work
         setSubject(t.subject || '');
         setBody(t.body || '');
       }
+    } else {
+      // if template cleared, allow manual editing
+      setSubject('');
+      setBody('');
     }
   }, [selectedTemplate, templates]);
 
@@ -65,8 +71,17 @@ export const ComposeEmail: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!selected.length) return alert('Select at least one recipient');
-    if (!subject || !body) return alert('Subject and body are required');
+    // if a template is selected, subject/body come from template so allow
+    if (!selectedTemplate && (!subject || !body)) return alert('Subject and body are required');
     if (saveAsTemplate && !templateName) return alert('Template name required');
+
+    // auth check
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      alert('Please sign in to schedule emails');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -85,8 +100,7 @@ export const ComposeEmail: React.FC = () => {
         const st = staff.find(s => s.id === id);
         const rendered_subject = Mustache.render(subject, st || {});
         const rendered_body = Mustache.render(body, st || {});
-        // use addDoc for simplicity
-        await addDoc(queueCol, {
+        const docData = {
           to: st.email,
           subject: rendered_subject,
           body: rendered_body,
@@ -95,7 +109,15 @@ export const ComposeEmail: React.FC = () => {
           scheduledFor: sched,
           sentAt: null,
           error: null,
-        });
+        };
+        // debug logging to help troubleshoot Firestore rules issues
+        console.log('Writing to email_queue:', { user: user.uid, docData });
+        try {
+          await addDoc(queueCol, docData);
+        } catch (writeErr) {
+          console.error('Failed to write email_queue doc', writeErr);
+          throw writeErr;
+        }
       }
 
       setLoading(false);
@@ -107,9 +129,9 @@ export const ComposeEmail: React.FC = () => {
       setSaveAsTemplate(false);
       setTemplateName('');
     } catch (e) {
-      console.error(e);
+      console.error('schedule error', e);
       setLoading(false);
-      alert('Failed to schedule emails');
+      alert('Failed to schedule emails. See console for details.');
     }
   };
 
@@ -126,11 +148,34 @@ export const ComposeEmail: React.FC = () => {
           ))}
         </TextField>
 
-        <TextField label="Subject" fullWidth value={subject} onChange={e => setSubject(e.target.value)} />
-        <TextField label="Body" fullWidth multiline minRows={6} value={body} onChange={e => setBody(e.target.value)} />
+        {/* hide manual inputs if template selected */}
+        {!selectedTemplate && (
+          <>
+            <TextField label="Subject" fullWidth value={subject} onChange={e => setSubject(e.target.value)} />
+            <TextField label="Body" fullWidth multiline minRows={6} value={body} onChange={e => setBody(e.target.value)} />
+            <FormControlLabel control={<Checkbox checked={saveAsTemplate} onChange={(e) => setSaveAsTemplate(e.target.checked)} />} label="Save as template" />
+            {saveAsTemplate && <TextField label="Template name" value={templateName} onChange={e => setTemplateName(e.target.value)} />}
+          </>
+        )}
 
-        <FormControlLabel control={<Checkbox checked={saveAsTemplate} onChange={(e) => setSaveAsTemplate(e.target.checked)} />} label="Save as template" />
-        {saveAsTemplate && <TextField label="Template name" value={templateName} onChange={e => setTemplateName(e.target.value)} />}
+        {/* when a template is selected, show read-only preview fields */}
+        {selectedTemplate && (
+          <>
+            <TextField label="Subject (from template)" fullWidth value={subject} InputProps={{ readOnly: true }} />
+            <TextField label="Body (from template)" fullWidth multiline minRows={6} value={body} InputProps={{ readOnly: true }} />
+          </>
+        )}
+
+        <FormControlLabel control={<Checkbox checked={scheduledForNow} onChange={e => setScheduledForNow(e.target.checked)} />} label="Send now" />
+        {!scheduledForNow && (
+          <TextField
+            label="Schedule for"
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={e => setScheduledAt(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
+        )}
 
         <Stack direction="row" spacing={2}>
           <Button variant="outlined" onClick={handlePreview}>Preview</Button>
