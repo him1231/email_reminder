@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, Card, CardContent, Stack, Typography, Switch, IconButton, Tooltip, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -8,10 +9,9 @@ import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc } fro
 import { db } from '../../lib/firebase/init';
 import { formatDistanceToNow } from 'date-fns';
 
-// simple navigation helper (no react-router required)
-const navigateTo = (path: string) => { window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); };
-
 export const RulesList: React.FC = () => {
+  const navigate = useNavigate();
+  const navigateTo = (path: string) => navigate(path); 
   const [rules, setRules] = useState<any[]>([]);
   const [templates, setTemplates] = useState<Record<string,string>>({});
   const [loading, setLoading] = useState(true);
