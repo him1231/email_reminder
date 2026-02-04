@@ -83,6 +83,17 @@ export const StaffList: React.FC = () => {
                       <Typography variant="caption" color="text.secondary">Contract: {s.contractEffectiveDate?.toDate ? s.contractEffectiveDate.toDate().toISOString().slice(0,10) : s.contractEffectiveDate}</Typography>
                     </Box>
                     <Box>
+                      <Button size="small" onClick={async () => {
+                        try {
+                          const { sendTestEmail } = await import('../../utils/email');
+                          await sendTestEmail(s.email, 'Test Email from Email Reminder', `Hello ${s.name},\n\nThis is a test email sent from the Email Reminder demo.`);
+                          alert('Test email sent (request submitted).');
+                        } catch (err) {
+                          console.error('send test email failed', err);
+                          alert('Unable to send test email: ' + (err as Error).message);
+                        }
+                      }}>Send test email</Button>
+
                       {auth.currentUser?.uid === s.createdBy && (
                         <IconButton aria-label="delete-staff" size="small" onClick={async () => {
                           const ok = window.confirm(`Delete staff “${s.name}”? This cannot be undone.`);
