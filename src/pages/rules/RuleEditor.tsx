@@ -1,8 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Card, CardContent, Grid, TextField, Typography, Switch, FormControl, InputLabel, Select, MenuItem, RadioGroup, FormControlLabel, Radio, Checkbox, Stack, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Box, Button, Card, CardContent, Grid, TextField, Typography, Switch, FormControl, InputLabel, Select, MenuItem, RadioGroup, FormControlLabel, Radio, Checkbox, Stack, Dialog, DialogTitle, DialogContent, DialogActions, FormHelperText } from '@mui/material';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase/init';
 import { useNavigate, useParams } from 'react-router-dom';
+
+// Field schemas for collections
+const COLLECTION_SCHEMAS: any = {
+  staff: {
+    fields: [
+      'name', 'email', 'contractEffectiveDate', 'contractEndDate',
+      'status', 'department', 'createdAt', 'updatedAt'
+    ],
+    dateFields: ['contractEffectiveDate', 'contractEndDate', 'createdAt', 'updatedAt'],
+    triggerableFields: ['contractEffectiveDate', 'contractEndDate', 'status', 'department'] // Fields that commonly change
+  },
+  // Add more collections as needed
+};
 
 export const RuleEditor: React.FC = () => {
   const { id } = useParams();
@@ -27,6 +40,9 @@ export const RuleEditor: React.FC = () => {
 
   const [templateId, setTemplateId] = useState('');
   const [recipientField, setRecipientField] = useState('email');
+  const [useTriggeredStaff, setUseTriggeredStaff] = useState(false);
+  const [hasBcc, setHasBcc] = useState(false);
+  const [bccRecipients, setBccRecipients] = useState('');
   const [relativeValue, setRelativeValue] = useState<number | ''>(3);
   const [relativeUnit, setRelativeUnit] = useState<'days'|'weeks'|'months'|'years'>('days');
   const [baseTimeField, setBaseTimeField] = useState('createdAt');
@@ -52,6 +68,9 @@ export const RuleEditor: React.FC = () => {
           if (data.condition) { setHasCondition(true); setCondField(data.condition.field || ''); setCondOp(data.condition.operator || '=='); setCondValue(String(data.condition.value || '')); }
           setTemplateId(data.emailConfig?.templateId || '');
           setRecipientField(data.emailConfig?.recipientField || 'email');
+          setUseTriggeredStaff(Boolean(data.emailConfig?.useTriggeredStaff));
+          setHasBcc(Boolean(data.emailConfig?.bcc));
+          setBccRecipients(typeof data.emailConfig?.bcc === 'string' ? data.emailConfig.bcc : '');
           setRelativeValue(data.emailConfig?.relativeTime?.value || 3);
           setRelativeUnit(data.emailConfig?.relativeTime?.unit || 'days');
           setBaseTimeField(data.emailConfig?.baseTimeField || 'createdAt');
@@ -71,9 +90,15 @@ export const RuleEditor: React.FC = () => {
     if (!collectionName) return 'Collection is required';
     if (!eventType) return 'Event is required';
     if (!templateId) return 'Template is required';
-    if (!recipientField.trim()) return 'Recipient field is required';
+    if (!useTriggeredStaff && !recipientField.trim()) return 'Recipient field is required';
     if (!relativeValue || Number(relativeValue) <= 0) return 'Relative time must be > 0';
     if (!baseTimeField.trim()) return 'Base time field is required';
+    // optional: basic BCC format check
+    if (hasBcc && bccRecipients.trim()) {
+      const parts = bccRecipients.split(',').map(s=>s.trim()).filter(Boolean);
+      const invalid = parts.some(p=>!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p));
+      if (invalid) return 'One or more BCC addresses look invalid';
+    }
     return null;
   };
 
@@ -87,7 +112,7 @@ export const RuleEditor: React.FC = () => {
       name: name.trim(),
       enabled,
       trigger: { collection: collectionName, event: eventType, ...(eventType==='updated' && triggerField ? { field: triggerField } : {}) },
-      emailConfig: { templateId, recipientField: recipientField || 'email', relativeTime: { value: Number(relativeValue), unit: relativeUnit }, baseTimeField },
+      emailConfig: { templateId, recipientField: recipientField || 'email', useTriggeredStaff, bcc: hasBcc ? bccRecipients : undefined, relativeTime: { value: Number(relativeValue), unit: relativeUnit }, baseTimeField },
     };
     if (hasCondition) payload.condition = { field: condField, operator: condOp, value: condValue };
 
@@ -146,7 +171,20 @@ export const RuleEditor: React.FC = () => {
             </Grid>
             {eventType === 'updated' && (
               <Grid item xs={12} md={4}>
-                <TextField label="Field (for updated)" placeholder="e.g., contractEffectiveDate" value={triggerField} onChange={(e)=>setTriggerField(e.target.value)} fullWidth />
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Field to Monitor (optional)</InputLabel>
+                  <Select
+                    value={triggerField}
+                    onChange={(e)=>setTriggerField(String(e.target.value))}
+                    label="Field to Monitor (optional)"
+                  >
+                    <MenuItem value=""><em>Any field change</em></MenuItem>
+                    {COLLECTION_SCHEMAS[collectionName]?.triggerableFields?.map((field:string)=> (
+                      <MenuItem key={field} value={field}>{field}</MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>Leave empty to trigger on any update, or select a specific field</FormHelperText>
+                </FormControl>
               </Grid>
             )}
 
@@ -156,9 +194,32 @@ export const RuleEditor: React.FC = () => {
             </Grid>
             {hasCondition && (
               <>
-                <Grid item xs={12} md={4}><TextField label="Field" value={condField} onChange={(e)=>setCondField(e.target.value)} fullWidth /></Grid>
-                <Grid item xs={12} md={4}><FormControl fullWidth><InputLabel>Operator</InputLabel><Select value={condOp} label="Operator" onChange={(e)=>setCondOp(String(e.target.value))}><MenuItem value="==">==</MenuItem><MenuItem value="!=">!=</MenuItem><MenuItem value=">=">&gt;=</MenuItem><MenuItem value=">">&gt;</MenuItem><MenuItem value="<">&lt;</MenuItem><MenuItem value="<=">&lt;=</MenuItem></Select></FormControl></Grid>
-                <Grid item xs={12} md={4}><TextField label="Value" value={condValue} onChange={(e)=>setCondValue(e.target.value)} fullWidth /></Grid>
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Condition Field</InputLabel>
+                    <Select value={condField} onChange={(e)=>setCondField(String(e.target.value))}>
+                      {COLLECTION_SCHEMAS[collectionName]?.fields?.map((field:string)=> (
+                        <MenuItem key={field} value={field}>{field}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Operator</InputLabel>
+                    <Select value={condOp} onChange={(e)=>setCondOp(String(e.target.value))}>
+                      <MenuItem value="==">equals (==)</MenuItem>
+                      <MenuItem value="!=">not equals (!=)</MenuItem>
+                      <MenuItem value=">">greater than (&gt;)</MenuItem>
+                      <MenuItem value="<">less than (&lt;)</MenuItem>
+                      <MenuItem value=">=">greater or equal (&gt;=)</MenuItem>
+                      <MenuItem value="<=">less or equal (&lt;=)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField label="Value" value={condValue} onChange={(e)=>setCondValue(e.target.value)} fullWidth />
+                </Grid>
               </>
             )}
 
@@ -172,11 +233,52 @@ export const RuleEditor: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={6}><TextField label="Recipient Field" value={recipientField} onChange={(e)=>setRecipientField(e.target.value)} placeholder="email" fullWidth /></Grid>
+
+            {/* Smart recipient mode: only for staff collection */}
+            {collectionName === 'staff' && (
+              <Grid item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={useTriggeredStaff}
+                      onChange={(e)=>{
+                        setUseTriggeredStaff(e.target.checked);
+                        if (e.target.checked) setRecipientField('email');
+                      }}
+                    />
+                  }
+                  label="Send to triggered staff member"
+                />
+              </Grid>
+            )}
+
+            <Grid item xs={12} md={6}>
+              <TextField label="Recipient Field" value={recipientField} onChange={(e)=>setRecipientField(e.target.value)} placeholder="email" fullWidth required disabled={useTriggeredStaff} helperText={useTriggeredStaff ? 'Will use the email of the staff member who triggered this rule' : 'Field containing recipient email address'} />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={<Checkbox checked={hasBcc} onChange={(e)=>setHasBcc(e.target.checked)} />}
+                label="Add BCC recipients (optional)"
+              />
+              {hasBcc && (
+                <TextField fullWidth margin="normal" label="BCC Recipients" value={bccRecipients} onChange={(e)=>setBccRecipients(e.target.value)} placeholder="email1@example.com, email2@example.com" helperText="Comma-separated email addresses for BCC" />
+              )}
+            </Grid>
 
             <Grid item xs={12} md={4}><TextField type="number" label="Send After" value={relativeValue} onChange={(e)=>setRelativeValue(e.target.value === '' ? '' : Number(e.target.value))} fullWidth /></Grid>
             <Grid item xs={12} md={4}><FormControl fullWidth><InputLabel>Unit</InputLabel><Select value={relativeUnit} label="Unit" onChange={(e)=>setRelativeUnit(e.target.value as any)}><MenuItem value="days">days</MenuItem><MenuItem value="weeks">weeks</MenuItem><MenuItem value="months">months</MenuItem><MenuItem value="years">years</MenuItem></Select></FormControl></Grid>
-            <Grid item xs={12} md={4}><TextField label="Base time field" value={baseTimeField} onChange={(e)=>setBaseTimeField(e.target.value)} placeholder="e.g., contractEffectiveDate, createdAt" fullWidth /></Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Base Time Field</InputLabel>
+                <Select value={baseTimeField} onChange={(e)=>setBaseTimeField(String(e.target.value))}>
+                  {COLLECTION_SCHEMAS[collectionName]?.dateFields?.map((field:string)=> (
+                    <MenuItem key={field} value={field}>{field}</MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>Date field to calculate send time from</FormHelperText>
+              </FormControl>
+            </Grid>
 
             {!isNew && (
               <Grid item xs={12}>

@@ -100,7 +100,7 @@ async function processRule(ruleDoc, templates) {
       const rendered = render(tpl, docData);
 
       // create email_queue entry
-      await db.collection('email_queue').add({
+      const queueEntry = {
         to,
         subject: rendered.subject,
         body: rendered.body,
@@ -111,7 +111,14 @@ async function processRule(ruleDoc, templates) {
         error: null,
         ruleId: rule.id,
         triggeredBy: d.id,
-      });
+      };
+
+      // Add BCC if configured on the rule
+      if (rule.emailConfig && rule.emailConfig.bcc) {
+        queueEntry.bcc = rule.emailConfig.bcc;
+      }
+
+      await db.collection('email_queue').add(queueEntry);
 
       triggeredIds.push(d.id);
       scheduled++;

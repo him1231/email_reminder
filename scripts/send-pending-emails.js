@@ -63,7 +63,9 @@ async function main() {
         continue;
       }
       try {
-        await transporter.sendMail({ from: smtpUser, to: data.to, subject: data.subject, text: data.body });
+        const mailOptions = { from: smtpUser, to: data.to, subject: data.subject, text: data.body };
+        if (data.bcc) mailOptions.bcc = data.bcc;
+        await transporter.sendMail(mailOptions);
         await doc.ref.update({ status: 'sent', sentAt: admin.firestore.FieldValue.serverTimestamp(), error: null });
         sent++;
       } catch (err) {
