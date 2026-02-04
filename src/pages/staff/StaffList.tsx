@@ -85,14 +85,26 @@ export const StaffList: React.FC = () => {
                     <Box>
                       <Button size="small" onClick={async () => {
                         try {
-                          const { sendTestEmail } = await import('../../utils/email');
-                          await sendTestEmail(s.email, 'Test Email from Email Reminder', `Hello ${s.name},\n\nThis is a test email sent from the Email Reminder demo.`);
-                          alert('Test email sent (request submitted).');
+                          // Add an email document to the Firestore queue collection
+                          const payload = {
+                            to: s.email,
+                            subject: 'Test Email from Email Reminder',
+                            body: `Hello ${s.name},\n\nThis is a test email added to the queue from the Email Reminder demo.`,
+                            status: 'pending',
+                            createdAt: new Date(),
+                            scheduledFor: new Date(),
+                            sentAt: null,
+                            error: null,
+                          } as any;
+                          // use addDoc to write to 'email_queue'
+                          const { addDoc, collection } = await import('firebase/firestore');
+                          await addDoc(collection(db, 'email_queue'), payload);
+                          alert('Email added to queue.');
                         } catch (err) {
-                          console.error('send test email failed', err);
-                          alert('Unable to send test email: ' + (err as Error).message);
+                          console.error('add to queue failed', err);
+                          alert('Unable to add email to queue: ' + (err as Error).message);
                         }
-                      }}>Send test email</Button>
+                      }}>Add to queue</Button>
 
                       {auth.currentUser?.uid === s.createdBy && (
                         <IconButton aria-label="delete-staff" size="small" onClick={async () => {
