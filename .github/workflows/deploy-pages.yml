@@ -31,7 +31,7 @@ jobs:
       - name: Validate required VITE_ envs (no secrets are printed)
         run: |
           missing=false
-          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID; do
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID VITE_SMTP_USER VITE_SMTP_PASS; do
             if [ -z "${!v:-}" ]; then
               echo "Missing required env: $v"
               missing=true
@@ -47,6 +47,8 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_SMTP_USER: ${{ secrets.VITE_SMTP_USER }}
+          VITE_SMTP_PASS: ${{ secrets.VITE_SMTP_PASS }}
 
       - name: Build
         env:
@@ -55,6 +57,8 @@ jobs:
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_SMTP_USER: ${{ secrets.VITE_SMTP_USER }}
+          VITE_SMTP_PASS: ${{ secrets.VITE_SMTP_PASS }}
         run: npm run build
       - name: SPA fallback
         run: cp dist/index.html dist/404.html
