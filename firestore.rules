@@ -92,6 +92,23 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // --- Email queue: allow clients to enqueue pending emails, read, and delete their pending emails ---
+    match /email_queue/{emailId} {
+      // Allow authenticated users to create pending emails
+      allow create: if request.auth != null
+                    && request.resource.data.status == 'pending';
+
+      // Allow authenticated users to read emails
+      allow read: if request.auth != null;
+
+      // Allow users to delete their own pending emails
+      allow delete: if request.auth != null
+                    && resource.data.status == 'pending';
+
+      // Server-side updates (status changes) handled by service account
+      // Service accounts bypass these rules
+    }
+
     // Default: deny
     match /{document=**} {
       allow read, write: if false;
