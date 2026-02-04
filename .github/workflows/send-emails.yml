@@ -1,5 +1,9 @@
 name: Send queued emails
 
+# Note: GitHub may disable scheduled workflows on forks or private repositories.
+# If automatic scheduling doesn't work, use workflow_dispatch (manual trigger)
+# or check repository settings for Actions permissions.
+
 on:
   schedule:
     - cron: '*/5 * * * *'
