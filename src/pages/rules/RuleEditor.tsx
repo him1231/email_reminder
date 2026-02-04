@@ -118,7 +118,7 @@ export const RuleEditor: React.FC = () => {
 
     try {
       if (isNew) {
-        await addDoc(collection(db,'rules'), { ...payload, lastTriggeredAt: null, lastTriggeredStaff: [], createdAt: serverTimestamp(), createdBy: auth.currentUser.uid });
+        await addDoc(collection(db,'rules'), { ...payload, lastTriggeredAt: serverTimestamp(), lastTriggeredStaff: [], createdAt: serverTimestamp(), createdBy: auth.currentUser.uid });
       } else {
         await updateDoc(doc(db,'rules',id!), payload);
       }

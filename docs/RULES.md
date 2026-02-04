@@ -1,32 +1,20 @@
-# Rules Engine
+## Triggering Rules
 
-This document describes the Rules Engine for automated email scheduling.
+### Automatic Monitoring
+When you create a new rule, it starts monitoring **from the moment it's created**. It will not process existing documents.
 
-Overview
-- Rules are stored in the `rules` collection.
-- A GitHub Actions workflow (`.github/workflows/process-rules.yml`) runs every 10 minutes and executes `scripts/process-rules.js`.
-- The script loads enabled rules, queries target collections, renders templates with Mustache, and creates `email_queue` entries scheduled for the calculated time.
+### Processing Existing Documents
+If you want a rule to process documents that already exist (backfill), use the **"Trigger Now"** button:
 
-Rule schema (summary)
-- name: string
-- enabled: boolean
-- trigger: { collection, event: 'created'|'updated', field? }
-- condition?: { field, operator, value }
-- emailConfig: { templateId, recipientField (default: 'email'), relativeTime: {value, unit}, baseTimeField }
-- lastTriggeredAt: timestamp | null
-- lastTriggeredStaff: string[]
-- createdAt, createdBy
+1. Go to the Rules list
+2. Click the ▶️ (play) icon next to the rule
+3. Confirm the action
+4. The next workflow run (within 10 minutes) will process all matching documents
 
-First-run behavior
-- If a rule's `lastTriggeredAt` is null the processor will skip existing documents for safety. Use the UI to provide a backfill option in the future.
+**Warning:** This may schedule many emails. Use with caution.
 
-Testing
-- Create a test rule with small relative time (e.g. 1 minute), create a test document in the target collection, and run the workflow manually (workflow_dispatch) or run `npm run process-rules` with FIREBASE_SERVICE_ACCOUNT set.
-
-Troubleshooting
-- Check the workflow logs in GitHub Actions.
-- `rules` documents will have `lastError` populated if processing fails.
-
-Notes
-- Deduplication uses `lastTriggeredStaff` array stored on the rule. The script keeps the most recent 1000 entries to avoid unbounded growth.
-- The relative time calculation uses a simple add algorithm (days/weeks/months/years).
+### How It Works
+- When you click "Trigger Now", the rule's `lastTriggeredAt` is set to 1 year ago
+- The next process-rules workflow run will query all documents created/updated since then
+- After processing, `lastTriggeredAt` is updated to now
+- Future runs will only process new changes

@@ -48,19 +48,26 @@ async function processRule(ruleDoc, templates) {
     const coll = db.collection(rule.trigger.collection);
     let q = coll;
 
+    // Safety: lastTriggeredAt indicates the point from which we should process changes.
+    // If it's missing (null), we treat the rule as newly-created and skip existing documents to
+    // avoid accidental backfills. The UI will auto-initialize lastTriggeredAt when creating rules,
+    // and provides a "Trigger Now" action to intentionally process existing documents.
     const lastTs = rule.lastTriggeredAt || null;
 
     if (rule.trigger.event === 'created') {
-      if (lastTs) q = q.where('createdAt', '>', lastTs);
-      else {
-        // first run: skip existing documents
-        console.log(`Rule ${rule.id}: no lastTriggeredAt, skipping existing docs`);
+      if (lastTs) {
+        q = q.where('createdAt', '>', lastTs);
+      } else {
+        // Safety: no lastTriggeredAt means brand new rule (shouldn't happen after fix)
+        // Skip existing documents to avoid unintended backfill
+        console.log(`Rule ${rule.id}: no lastTriggeredAt, skipping existing docs (safety)`);
         return { scheduled: 0 };
       }
     } else if (rule.trigger.event === 'updated') {
-      if (lastTs) q = q.where('updatedAt', '>', lastTs);
-      else {
-        console.log(`Rule ${rule.id}: no lastTriggeredAt for updated event, skipping`);
+      if (lastTs) {
+        q = q.where('updatedAt', '>', lastTs);
+      } else {
+        console.log(`Rule ${rule.id}: no lastTriggeredAt for updated event, skipping (safety)`);
         return { scheduled: 0 };
       }
     }

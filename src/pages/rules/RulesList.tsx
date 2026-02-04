@@ -5,7 +5,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase/init';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -40,6 +41,27 @@ export const RulesList: React.FC = () => {
     try {
       await updateDoc(doc(db, 'rules', id), { enabled: newValue });
     } catch (err) { console.error('toggle error', err); }
+  };
+
+  const [triggerDialogOpen, setTriggerDialogOpen] = useState(false);
+  const [triggerRuleId, setTriggerRuleId] = useState<string | null>(null);
+  const [triggerRuleName, setTriggerRuleName] = useState('');
+
+  const handleTriggerNow = (ruleId:string, ruleName:string) => {
+    setTriggerRuleId(ruleId);
+    setTriggerRuleName(ruleName);
+    setTriggerDialogOpen(true);
+  };
+
+  const confirmTriggerNow = async () => {
+    if (!triggerRuleId) return;
+    try {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      await updateDoc(doc(db, 'rules', triggerRuleId), { lastTriggeredAt: Timestamp.fromDate(oneYearAgo), lastTriggeredStaff: [] });
+      alert(`Rule "${triggerRuleName}" will process existing documents on next workflow run (every 10 minutes).`);
+      setTriggerDialogOpen(false);
+    } catch (err) { console.error('Failed to trigger rule:', err); alert('Failed to trigger rule: ' + (err as Error).message); }
   };
 
   const onDelete = async () => {
@@ -94,6 +116,9 @@ export const RulesList: React.FC = () => {
                   </TableCell>
                   <TableCell onClick={(e)=>e.stopPropagation()}>
                     <IconButton size="small" onClick={()=>navigateTo(`/rules/${r.id}/edit`)} aria-label="edit"><EditIcon fontSize="small"/></IconButton>
+                    <Tooltip title="Trigger now (process existing documents)">
+                      <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); handleTriggerNow(r.id, r.name); }} aria-label="trigger"><PlayArrowIcon fontSize="small"/></IconButton>
+                    </Tooltip>
                     <IconButton size="small" onClick={()=>setConfirmDelete({open:true,id:r.id,name:r.name})} aria-label="delete"><DeleteIcon fontSize="small"/></IconButton>
                   </TableCell>
                 </TableRow>
@@ -109,6 +134,25 @@ export const RulesList: React.FC = () => {
         <DialogActions>
           <Button onClick={()=>setConfirmDelete({open:false})}>Cancel</Button>
           <Button color="error" variant="contained" onClick={onDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={triggerDialogOpen} onClose={()=>setTriggerDialogOpen(false)}>
+        <DialogTitle>Trigger Rule Now?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This will reset the rule's tracking and process <strong>all existing documents</strong> that match the criteria.
+          </Typography>
+          <Typography sx={{ mt: 2 }}>
+            Rule: <strong>{triggerRuleName}</strong>
+          </Typography>
+          <Typography sx={{ mt: 1, color: 'warning.main' }}>
+            ⚠️ This may schedule many emails. The next workflow run (within 10 minutes) will process them.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={()=>setTriggerDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmTriggerNow} variant="contained" color="warning">Trigger Now</Button>
         </DialogActions>
       </Dialog>
     </Box>
