@@ -44,8 +44,17 @@ service cloud.firestore {
 
     // --- Rules: client may create/edit rule metadata but automation is server-side in Phase-2 ---
     match /rules/{ruleId} {
+      // Allow authenticated users to read all rules
       allow read: if isSignedIn() || isEmulatorOpen();
-      allow create: if isSignedIn() && request.resource.data.name is string && request.resource.data.templateId is string && request.resource.data.createdBy == request.auth.uid;
+
+      // Allow authenticated users to create rules
+      allow create: if isSignedIn()
+                    && request.resource.data.name is string
+                    && request.resource.data.enabled is bool
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.createdBy == request.auth.uid;
+
+      // Allow creator to update/delete their rules
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
     }
 
