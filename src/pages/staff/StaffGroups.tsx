@@ -21,11 +21,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import FolderIcon from '@mui/icons-material/Folder';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-
-// new TreeView package
-import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 
 // firebase
 import {
@@ -45,27 +41,12 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase/init';
 
-// dnd-kit
-import {
-  DndContext,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
 // formik + yup
-import { Formik, Form, Field } from 'formik';
+import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
+
+// TODO: Temporary change — render a flat/raw list of staff groups instead of the recursive tree
+// This avoids recursion/loops in production data. Revert this change once the cycle issue is fixed and tree rendering is safe.
 
 type StaffGroup = {
   id: string;
@@ -78,10 +59,6 @@ type StaffGroup = {
   updatedAt?: Timestamp;
 };
 
-type TreeNode = StaffGroup & { children: TreeNode[] };
-
-const MAX_TREE_DEPTH = 100;
-
 const sgLog = (...args: any[]) => {
   try {
     const ts = new Date().toISOString();
@@ -91,94 +68,6 @@ const sgLog = (...args: any[]) => {
   } catch (e) {
     // ignore logging errors
   }
-};
-
-export const buildTree = (items: StaffGroup[]): TreeNode[] => {
-  sgLog('buildTree START items.length=', items?.length);
-  const map = new Map<string, TreeNode>();
-  const roots: TreeNode[] = [];
-  // Filter out any invalid items without proper id
-  const validItems = items.filter(item => item && item.id && typeof item.id === 'string');
-  const sorted = [...validItems].sort((a, b) => (a.order || 0) - (b.order || 0));
-  sorted.forEach((item) => {
-    if (item.id) {
-      map.set(item.id, { ...item, children: [] } as TreeNode);
-      sgLog('buildTree added map node', item.id, 'parentId=', item.parentId);
-    }
-  });
-
-  // Helper: detect if parent would create a cycle (parent is a descendant of child)
-  const wouldCreateCycle = (childId: string, parentId: string | null): boolean => {
-    sgLog('wouldCreateCycle check child=', childId, 'parent=', parentId);
-    if (!parentId) return false;
-    let current = parentId;
-    const visited = new Set<string>();
-    let depth = 0;
-    while (current && depth < MAX_TREE_DEPTH) {
-      sgLog('wouldCreateCycle visiting', current, 'depth=', depth);
-      if (visited.has(current)) {
-        sgLog('wouldCreateCycle detected cycle via visited', current);
-        return true; // cycle
-      }
-      visited.add(current);
-      if (current === childId) {
-        sgLog('wouldCreateCycle parent chain leads back to child', childId);
-        return true; // parent chain leads back to child
-      }
-      const parentItem = items.find(i => i.id === current);
-      if (!parentItem || !parentItem.parentId) break;
-      current = parentItem.parentId as string;
-      depth++;
-    }
-    sgLog('wouldCreateCycle no cycle detected for child=', childId, 'parent=', parentId);
-    return false;
-  };
-
-  sorted.forEach((item) => {
-    if (!item.id) return;
-    const node = map.get(item.id)!;
-    // If parent is invalid or would create a cycle, treat as root
-    const treatAsRoot = !(item.parentId && map.has(item.parentId) && !wouldCreateCycle(item.id, item.parentId));
-    sgLog('buildTree placing node', item.id, 'parentId=', item.parentId, 'treatAsRoot=', treatAsRoot);
-    if (!treatAsRoot) {
-      map.get(item.parentId)!.children.push(node);
-      sgLog('buildTree linked', item.id, '-> parent', item.parentId);
-    } else {
-      roots.push(node);
-      sgLog('buildTree root', item.id);
-    }
-  });
-  sgLog('buildTree END roots.length=', roots.length);
-  return roots;
-};
-
-export const isDescendant = (childId: string, ancestorId: string, items: StaffGroup[]): boolean => {
-  sgLog('isDescendant START child=', childId, 'ancestor=', ancestorId);
-  // iterative with visited detection to avoid infinite recursion
-  const visited = new Set<string>();
-  let currentId: string | null = childId;
-  let depth = 0;
-  while (currentId && depth < MAX_TREE_DEPTH) {
-    sgLog('isDescendant checking currentId=', currentId, 'depth=', depth);
-    if (visited.has(currentId)) {
-      sgLog('isDescendant encountered visited cycle at', currentId, '-> returning false');
-      return false; // broken cycle -> not a proper descendant
-    }
-    visited.add(currentId);
-    const item = items.find((i) => i.id === currentId);
-    if (!item || !item.parentId) {
-      sgLog('isDescendant reached null parent or missing item for', currentId, '-> returning false');
-      return false;
-    }
-    if (item.parentId === ancestorId) {
-      sgLog('isDescendant found ancestor match for', childId, 'ancestor=', ancestorId);
-      return true;
-    }
-    currentId = item.parentId as string;
-    depth++;
-  }
-  sgLog('isDescendant END -> false for child=', childId, 'ancestor=', ancestorId);
-  return false;
 };
 
 export const StaffGroups: React.FC = () => {
@@ -191,12 +80,8 @@ export const StaffGroups: React.FC = () => {
   const [editing, setEditing] = useState<StaffGroup | null>(null);
   const [deleting, setDeleting] = useState<StaffGroup | null>(null);
 
-  // dnd
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor));
-
   // snack
-  const [snack, setSnack] = useState<{ open: boolean; message: string; severity?: 'success' | 'error' }>(
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity?: 'success' | 'error' | 'info' }>(
     { open: false, message: '', severity: 'success' }
   );
 
@@ -226,13 +111,6 @@ export const StaffGroups: React.FC = () => {
     });
     return () => unsub();
   }, []);
-
-  // TEMPORARY: render a flat/raw list to avoid recursive rendering loops
-  // TODO: revert to tree rendering after the bug is resolved
-  const tree = useMemo(() => {
-    sgLog('useMemo SKIP buildTree - rendering flat list items.length=', items.length);
-    return items.map(i => ({ ...i, children: [] }));
-  }, [items]);
 
   const openCreate = () => { setEditing(null); setFormOpen(true); };
   const openEdit = (g: StaffGroup) => { setEditing(g); setFormOpen(true); };
@@ -275,9 +153,6 @@ export const StaffGroups: React.FC = () => {
   const confirmDelete = async () => {
     if (!deleting) return;
     try {
-      // remove group id from staff.groupIds
-      const q = query(collection(db, 'staff'), /* where('groupIds', 'array-contains', deleting.id) */);
-      // because we imported only top-level helpers previously, we'll fetch with getDocs where needed
       const { where } = await import('firebase/firestore');
       const staffQuery = query(collection(db, 'staff'), where('groupIds', 'array-contains', deleting.id));
       const snap = await getDocs(staffQuery);
@@ -295,165 +170,27 @@ export const StaffGroups: React.FC = () => {
     }
   };
 
-  // helpers
-  const findItem = (id: string) => items.find(i => i.id === id);
-  const getSiblings = (parent: string | null) => items.filter(i => (i.parentId || null) === parent).sort((a,b)=> (a.order||0)-(b.order||0));
-
-  const handleDragStart = (e: DragStartEvent) => setActiveId(e.active.id as string);
-
-  const handleDragEnd = async (e: DragEndEvent) => {
-    const { active, over } = e;
-    setActiveId(null);
-    if (!over) return;
-    if (active.id === over.id) return;
-    const draggedId = active.id as string;
-    const targetId = over.id as string;
-    const dragged = findItem(draggedId);
-    const target = findItem(targetId);
-    if (!dragged || !target) return;
-    // prevent circular
-    if (isDescendant(targetId, draggedId, items)) {
-      setSnack({ open: true, message: 'Cannot move parent into its own child', severity: 'error' });
-      return;
-    }
-    try {
-      const batch = writeBatch(db);
-      const newParentId = target.id; // dropping onto target makes it child
-      if ((dragged.parentId||null) !== newParentId) {
-        const targetChildren = getSiblings(newParentId);
-        const newOrder = targetChildren.length;
-        batch.update(doc(db, 'staff_groups', dragged.id), { parentId: newParentId, order: newOrder, updatedAt: serverTimestamp() });
-        const oldSiblings = getSiblings(dragged.parentId || null).filter(s => s.id !== dragged.id);
-        oldSiblings.forEach((s, idx) => batch.update(doc(db, 'staff_groups', s.id), { order: idx, updatedAt: serverTimestamp() }));
-      } else {
-        const parent = dragged.parentId || null;
-        const siblings = getSiblings(parent).filter(s => s.id !== dragged.id);
-        const targetIndex = siblings.findIndex(s => s.id === target.id);
-        const newOrderList: StaffGroup[] = [];
-        siblings.forEach(s => newOrderList.push(s));
-        newOrderList.splice(targetIndex, 0, dragged);
-        newOrderList.forEach((s, idx) => batch.update(doc(db, 'staff_groups', s.id), { order: idx, updatedAt: serverTimestamp() }));
-      }
-      await batch.commit();
-      setSnack({ open: true, message: 'Reordered', severity: 'success' });
-    } catch (err:any) {
-      console.error(err);
-      setSnack({ open: true, message: err.message || 'Reorder failed', severity: 'error' });
-    }
-  };
-
-  // Sortable wrapper for TreeItem
-  const SortableTreeNode: React.FC<{ node: TreeNode; depth?: number }> = ({ node, depth = 0 }) => {
-    sgLog('SortableTreeNode ENTRY', node?.id, 'depth=', depth);
-    // Safety check - don't render if node doesn't have valid id
-    if (!node || !node.id) {
-      console.warn('SortableTreeNode: node missing id', node);
-      sgLog('SortableTreeNode EXIT missing id');
-      return null;
-    }
-
-    // Depth guard to avoid infinite recursion / stack overflow
-    const MAX_RENDER_DEPTH = 20;
-    if (depth > MAX_RENDER_DEPTH) {
-      console.warn('SortableTreeNode: max render depth exceeded for node', node.id);
-      sgLog('SortableTreeNode EXIT max render depth exceeded for', node.id);
-      return (
-        <div>
-          <TreeItem nodeId={node.id} label={(
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <FolderIcon color="primary" />
+  // simple flat rendering (temporary)
+  const renderFlatList = () => {
+    return (
+      <Stack spacing={1}>
+        {items.map(i => (
+          <Box key={i.id} sx={{ p: 1, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Box>
-                <Typography variant="body1">{node.name}</Typography>
-                <Typography variant="caption" color="text.secondary">Depth limit reached</Typography>
+                <Typography variant="subtitle1">{i.name} <Typography component="span" variant="caption" color="text.secondary">(id: {i.id})</Typography></Typography>
+                <Typography variant="body2" color="text.secondary">Parent: {i.parentId ?? 'Top level'} • Order: {i.order ?? 0}</Typography>
+                {i.description ? <Typography variant="caption" color="text.secondary">{i.description}</Typography> : null}
               </Box>
-            </Stack>
-          )} />
-        </div>
-      );
-    }
-
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
-    const style: React.CSSProperties = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '6px 8px',
-      borderRadius: 8,
-    };
-
-    // Filter children to ensure they all have valid ids and avoid cycles
-    const validChildren = (node.children || []).filter(c => c && c.id);
-
-    const rendered = (
-      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-        <TreeItem
-          nodeId={node.id}
-          label={(
-            <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <FolderIcon color="primary" />
-                <Box>
-                  <Typography variant="body1">{node.name}</Typography>
-                  {node.description ? <Typography variant="caption" color="text.secondary">{node.description}</Typography> : null}
-                </Box>
-              </Stack>
               <Stack direction="row" spacing={1}>
-                <Tooltip title="Edit"><IconButton size="small" onClick={(e:any)=>{ e.stopPropagation(); openEdit(node); }}><EditIcon fontSize="small"/></IconButton></Tooltip>
-                <Tooltip title="Delete"><IconButton size="small" onClick={(e:any)=>{ e.stopPropagation(); openDelete(node); }}><DeleteIcon fontSize="small"/></IconButton></Tooltip>
+                <Tooltip title="Edit"><IconButton size="small" onClick={()=>openEdit(i)}><EditIcon fontSize="small"/></IconButton></Tooltip>
+                <Tooltip title="Delete"><IconButton size="small" onClick={()=>openDelete(i)}><DeleteIcon fontSize="small"/></IconButton></Tooltip>
               </Stack>
             </Stack>
-          )}
-        >
-          {validChildren.map(c => <SortableTreeNode key={c.id} node={c} depth={depth + 1} />)}
-        </TreeItem>
-      </div>
+          </Box>
+        ))}
+      </Stack>
     );
-
-    sgLog('SortableTreeNode EXIT', node.id, 'depth=', depth, 'children=', validChildren.map(c=>c.id));
-    return rendered;
-  };
-
-  const cleanupBadData = async () => {
-    try {
-      const snap = await getDocs(collection(db, 'staff_groups'));
-      const batch = writeBatch(db);
-      let fixed = 0;
-      
-      snap.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const updates: any = {};
-        
-        // Ensure parentId is null or string
-        if (data.parentId === undefined) {
-          updates.parentId = null;
-        }
-        
-        // Ensure order is number
-        if (typeof data.order !== 'number') {
-          updates.order = 0;
-        }
-        
-        // Only update if needed
-        if (Object.keys(updates).length > 0) {
-          updates.updatedAt = serverTimestamp();
-          batch.update(docSnap.ref, updates);
-          fixed++;
-        }
-      });
-      
-      if (fixed > 0) {
-        await batch.commit();
-        setSnack({ open: true, message: `Fixed ${fixed} groups`, severity: 'success' });
-      } else {
-        setSnack({ open: true, message: 'No bad data found', severity: 'info' });
-      }
-    } catch (err: any) {
-      console.error(err);
-      setSnack({ open: true, message: err.message || 'Cleanup failed', severity: 'error' });
-    }
   };
 
   return (
@@ -461,7 +198,24 @@ export const StaffGroups: React.FC = () => {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Staff Groups</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" onClick={cleanupBadData}>Fix Bad Data</Button>
+          <Button variant="outlined" size="small" onClick={() => {
+            (async () => {
+              try {
+                const snap = await getDocs(collection(db, 'staff_groups'));
+                const batch = writeBatch(db);
+                let fixed = 0;
+                snap.docs.forEach(docSnap => {
+                  const data:any = docSnap.data();
+                  const updates:any = {};
+                  if (data.parentId === undefined) updates.parentId = null;
+                  if (typeof data.order !== 'number') updates.order = 0;
+                  if (Object.keys(updates).length > 0) { updates.updatedAt = serverTimestamp(); batch.update(docSnap.ref, updates); fixed++; }
+                });
+                if (fixed > 0) { await batch.commit(); setSnack({ open:true, message:`Fixed ${fixed} groups`, severity:'success' }); }
+                else setSnack({ open:true, message:'No bad data found', severity:'info' });
+              } catch (e:any) { console.error(e); setSnack({ open:true, message:e.message||'Cleanup failed', severity:'error' }); }
+            })();
+          }}>Fix Bad Data</Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Group</Button>
         </Stack>
       </Stack>
@@ -485,14 +239,8 @@ export const StaffGroups: React.FC = () => {
       ) : (
         <Card>
           <CardContent>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <SortableContext items={items.map(i=>i.id).filter(id => id)} strategy={verticalListSortingStrategy}>
-                <SimpleTreeView defaultExpandAll>
-                  {tree.filter(r => r && r.id).map(r => <SortableTreeNode key={r.id} node={r} />)}
-                </SimpleTreeView>
-              </SortableContext>
-              <DragOverlay>{activeId ? (<Card sx={{ p: 1 }}><Typography>{findItem(activeId)?.name}</Typography></Card>) : null}</DragOverlay>
-            </DndContext>
+            {/* Flat/raw list rendering to avoid recursive tree rendering (temporary) */}
+            {renderFlatList()}
           </CardContent>
         </Card>
       )}
