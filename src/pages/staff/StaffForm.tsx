@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Grid, Stack, TextField } from "@mui/material";
+import { Button, Grid, Stack, TextField, MenuItem, Select, InputLabel, FormControl, Chip, Box } from "@mui/material";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -46,7 +46,7 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         }
       }}
     >
-      {({ isSubmitting, touched, errors, handleChange, values }) => (
+      {({ isSubmitting, touched, errors, handleChange, values, setFieldValue }) => (
         <Form>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
@@ -71,6 +71,30 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             <Grid item xs={12} sm={6}>
               <TextField name="contractEffectiveDate" label="Contract effective date" type="date" value={values.contractEffectiveDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth size="small" />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="groups-label">Groups</InputLabel>
+                <Select
+                  labelId="groups-label"
+                  multiple
+                  value={values.groupIds || []}
+                  onChange={(e) => setFieldValue('groupIds', e.target.value)}
+                  renderValue={(selected: any) => (
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {selected.map((sid: string) => {
+                        const g = groups.find((x) => x.id === sid);
+                        return <Chip key={sid} label={g?.name || sid} size="small" />;
+                      })}
+                    </Box>
+                  )}
+                >
+                  {groups.map(g => (
+                    <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12}>

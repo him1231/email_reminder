@@ -24,6 +24,7 @@ function Navigation() {
       <Typography variant="h6">Email Reminder — Demo</Typography>
       <Divider orientation="vertical" flexItem />
       <Button component={Link} to="/staff" variant={location.pathname === '/staff' ? 'contained' : 'text'}>Staff</Button>
+      <Button component={Link} to="/staff-groups" variant={location.pathname === '/staff-groups' ? 'contained' : 'text'}>Staff Groups</Button>
       <Button component={Link} to="/templates" variant={location.pathname === '/templates' ? 'contained' : 'text'}>Templates</Button>
       <Button component={Link} to="/compose" variant={location.pathname === '/compose' ? 'contained' : 'text'}>Compose</Button>
       <Button component={Link} to="/rules" variant={location.pathname.startsWith('/rules') ? 'contained' : 'text'}>Rules</Button>
