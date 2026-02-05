@@ -227,10 +227,11 @@ export const StaffGroups: React.FC = () => {
     return () => unsub();
   }, []);
 
+  // TEMPORARY: render a flat/raw list to avoid recursive rendering loops
+  // TODO: revert to tree rendering after the bug is resolved
   const tree = useMemo(() => {
-    const t = buildTree(items);
-    sgLog('useMemo tree built roots=', t.map(r=>r.id));
-    return t;
+    sgLog('useMemo SKIP buildTree - rendering flat list items.length=', items.length);
+    return items.map(i => ({ ...i, children: [] }));
   }, [items]);
 
   const openCreate = () => { setEditing(null); setFormOpen(true); };
