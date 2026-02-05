@@ -80,6 +80,8 @@ type StaffGroup = {
 
 type TreeNode = StaffGroup & { children: TreeNode[] };
 
+const MAX_TREE_DEPTH = 100;
+
 const buildTree = (items: StaffGroup[]): TreeNode[] => {
   const map = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
@@ -91,10 +93,30 @@ const buildTree = (items: StaffGroup[]): TreeNode[] => {
       map.set(item.id, { ...item, children: [] } as TreeNode);
     }
   });
+
+  // Helper: detect if parent would create a cycle (parent is a descendant of child)
+  const wouldCreateCycle = (childId: string, parentId: string | null): boolean => {
+    if (!parentId) return false;
+    let current = parentId;
+    const visited = new Set<string>();
+    let depth = 0;
+    while (current && depth < MAX_TREE_DEPTH) {
+      if (visited.has(current)) return true; // cycle
+      visited.add(current);
+      if (current === childId) return true; // parent chain leads back to child
+      const parentItem = items.find(i => i.id === current);
+      if (!parentItem || !parentItem.parentId) break;
+      current = parentItem.parentId as string;
+      depth++;
+    }
+    return false;
+  };
+
   sorted.forEach((item) => {
     if (!item.id) return;
     const node = map.get(item.id)!;
-    if (item.parentId && map.has(item.parentId)) {
+    // If parent is invalid or would create a cycle, treat as root
+    if (item.parentId && map.has(item.parentId) && !wouldCreateCycle(item.id, item.parentId)) {
       map.get(item.parentId)!.children.push(node);
     } else {
       roots.push(node);
@@ -104,10 +126,20 @@ const buildTree = (items: StaffGroup[]): TreeNode[] => {
 };
 
 const isDescendant = (childId: string, ancestorId: string, items: StaffGroup[]): boolean => {
-  const item = items.find((i) => i.id === childId);
-  if (!item || !item.parentId) return false;
-  if (item.parentId === ancestorId) return true;
-  return isDescendant(item.parentId, ancestorId, items);
+  // iterative with visited detection to avoid infinite recursion
+  const visited = new Set<string>();
+  let currentId: string | null = childId;
+  let depth = 0;
+  while (currentId && depth < MAX_TREE_DEPTH) {
+    if (visited.has(currentId)) return false; // broken cycle -> not a proper descendant
+    visited.add(currentId);
+    const item = items.find((i) => i.id === currentId);
+    if (!item || !item.parentId) return false;
+    if (item.parentId === ancestorId) return true;
+    currentId = item.parentId as string;
+    depth++;
+  }
+  return false;
 };
 
 export const StaffGroups: React.FC = () => {
