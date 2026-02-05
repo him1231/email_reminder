@@ -83,12 +83,22 @@ type TreeNode = StaffGroup & { children: TreeNode[] };
 const buildTree = (items: StaffGroup[]): TreeNode[] => {
   const map = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
-  const sorted = [...items].sort((a, b) => (a.order || 0) - (b.order || 0));
-  sorted.forEach((item) => map.set(item.id, { ...item, children: [] } as TreeNode));
+  // Filter out any invalid items without proper id
+  const validItems = items.filter(item => item && item.id && typeof item.id === 'string');
+  const sorted = [...validItems].sort((a, b) => (a.order || 0) - (b.order || 0));
   sorted.forEach((item) => {
+    if (item.id) {
+      map.set(item.id, { ...item, children: [] } as TreeNode);
+    }
+  });
+  sorted.forEach((item) => {
+    if (!item.id) return;
     const node = map.get(item.id)!;
-    if (item.parentId && map.has(item.parentId)) map.get(item.parentId)!.children.push(node);
-    else roots.push(node);
+    if (item.parentId && map.has(item.parentId)) {
+      map.get(item.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
   });
   return roots;
 };
@@ -122,7 +132,19 @@ export const StaffGroups: React.FC = () => {
   useEffect(() => {
     const q = query(collection(db, 'staff_groups'), orderBy('order', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
-      const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as StaffGroup));
+      const docs = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          name: data.name || 'Untitled',
+          description: data.description,
+          parentId: data.parentId || null,
+          order: typeof data.order === 'number' ? data.order : 0,
+          createdAt: data.createdAt,
+          createdBy: data.createdBy,
+          updatedAt: data.updatedAt,
+        } as StaffGroup;
+      }).filter(doc => doc.id); // filter out any items without valid id
       setItems(docs);
       setLoading(false);
     }, (err) => {
