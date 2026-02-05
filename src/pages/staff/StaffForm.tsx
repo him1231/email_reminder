@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Button, Grid, Stack, TextField, MenuItem, Select, InputLabel, FormControl, Chip, Box } from "@mui/material";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
@@ -18,11 +18,53 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   useEffect(() => {
     (async () => {
       const { collection, getDocs, orderBy, query } = await import('firebase/firestore');
-      const q = query(collection(db, "staff_groups"), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, "staff_groups"), orderBy('order', 'asc'));
       const snap = await getDocs(q);
       setGroups(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     })();
   }, []);
+
+  // build tree
+  const tree = useMemo(() => {
+    const map = new Map<string, any>();
+    groups.forEach(g => map.set(g.id, { ...g, children: [] }));
+    const roots: any[] = [];
+    map.forEach(v => {
+      const pid = v.parentId || null;
+      if (pid && map.has(pid)) map.get(pid).children.push(v);
+      else roots.push(v);
+    });
+    const sortRec = (nodes:any[]) => nodes.sort((a,b)=> (a.order||0)-(b.order||0)).forEach(n=>n.children && sortRec(n.children));
+    sortRec(roots);
+    return roots;
+  }, [groups]);
+
+  const renderCheckboxTree = (nodes:any[], values:any, setFieldValue:any, prefixChecked = true) => (
+    nodes.map(node => {
+      const parentChecked = prefixChecked;
+      const checked = Boolean(values.groupIds?.includes(node.id));
+      const disabled = !parentChecked; // children visible/selectable only if parent is checked
+      return (
+        <Box key={node.id} sx={{ pl: 2 }}>
+          <label>
+            <input type="checkbox" checked={checked} disabled={!node.parentId && false ? false : disabled} onChange={(e:any) => {
+              if (e.target.checked) {
+                // add this id
+                setFieldValue('groupIds', Array.from(new Set([...(values.groupIds||[]), node.id])));
+              } else {
+                // remove this and all children
+                const removeIds: string[] = [];
+                const collect = (n:any) => { removeIds.push(n.id); n.children?.forEach((c:any)=>collect(c)); };
+                collect(node);
+                setFieldValue('groupIds', (values.groupIds||[]).filter((id:string)=>!removeIds.includes(id)));
+              }
+            }} /> {node.name}
+          </label>
+          {node.children && node.children.length>0 && (values.groupIds||[]).includes(node.id) && renderCheckboxTree(node.children, values, setFieldValue, true)}
+        </Box>
+      );
+    })
+  );
 
   return (
     <Formik
@@ -74,27 +116,12 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </Grid>
 
             <Grid item xs={12}>
-              <FormControl fullWidth size="small">
+              <Box>
                 <InputLabel id="groups-label">Groups</InputLabel>
-                <Select
-                  labelId="groups-label"
-                  multiple
-                  value={values.groupIds || []}
-                  onChange={(e) => setFieldValue('groupIds', e.target.value)}
-                  renderValue={(selected: any) => (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {selected.map((sid: string) => {
-                        const g = groups.find((x) => x.id === sid);
-                        return <Chip key={sid} label={g?.name || sid} size="small" />;
-                      })}
-                    </Box>
-                  )}
-                >
-                  {groups.map(g => (
-                    <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                <Box sx={{ border: '1px solid #eee', borderRadius: 1, p:1, maxHeight: 300, overflow: 'auto' }}>
+                  {renderCheckboxTree(tree, { groupIds: values.groupIds }, setFieldValue)}
+                </Box>
+              </Box>
             </Grid>
 
             <Grid item xs={12}>

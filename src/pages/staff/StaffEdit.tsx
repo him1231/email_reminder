@@ -93,24 +93,41 @@ export const StaffEdit: React.FC = () => {
               <Grid item xs={12}>
                 <FormControl fullWidth size="small">
                   <InputLabel id="groups-label">Groups</InputLabel>
-                  <Select
-                    labelId="groups-label"
-                    multiple
-                    value={values.groupIds || []}
-                    onChange={(e) => setFieldValue('groupIds', e.target.value)}
-                    renderValue={(selected:any) => (
-                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        {selected.map((sid: string) => {
-                          const g = groups.find((x) => x.id === sid);
-                          return <Chip key={sid} label={g?.name || sid} />;
-                        })}
-                      </Box>
-                    )}
-                  >
-                    {groups.map(g => (
-                      <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
-                    ))}
-                  </Select>
+                  <Box sx={{ border: '1px solid #eee', borderRadius: 1, p:1, maxHeight: 300, overflow: 'auto' }}>
+                    {/* simple checkbox tree - children visible/selectable only when parent checked */}
+                    { /* build tree from groups */ }
+                    {(() => {
+                      const map = new Map<string, any>();
+                      groups.forEach(g => map.set(g.id, { ...g, children: [] }));
+                      const roots:any[] = [];
+                      map.forEach(v => {
+                        const pid = v.parentId || null;
+                        if (pid && map.has(pid)) map.get(pid).children.push(v);
+                        else roots.push(v);
+                      });
+                      const sortRec = (nodes:any[]) => nodes.sort((a,b)=> (a.order||0)-(b.order||0)).forEach(n=>n.children && sortRec(n.children));
+                      sortRec(roots);
+
+                      const render = (nodes:any[], values:any) => nodes.map((node:any)=>(
+                        <Box key={node.id} sx={{ pl: 2 }}>
+                          <label>
+                            <input type="checkbox" checked={values.groupIds?.includes(node.id)} disabled={!!node.parentId && !(values.groupIds||[]).includes(node.parentId)} onChange={(e:any)=>{
+                              if (e.target.checked) setFieldValue('groupIds', Array.from(new Set([...(values.groupIds||[]), node.id])));
+                              else {
+                                const remove:string[] = [];
+                                const collect = (n:any)=>{ remove.push(n.id); n.children?.forEach((c:any)=>collect(c)); };
+                                collect(node);
+                                setFieldValue('groupIds', (values.groupIds||[]).filter((id:string)=>!remove.includes(id)));
+                              }
+                            }} /> {node.name}
+                          </label>
+                          {node.children && node.children.length>0 && (values.groupIds||[]).includes(node.id) && render(node.children, values)}
+                        </Box>
+                      ));
+
+                      return render(roots, values);
+                    })()}
+                  </Box>
                 </FormControl>
               </Grid>
 
