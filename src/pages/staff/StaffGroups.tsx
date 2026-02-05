@@ -82,19 +82,7 @@ type TreeNode = StaffGroup & { children: TreeNode[] };
 
 const MAX_TREE_DEPTH = 100;
 
-const sgLog = (...args: any[]) => {
-  try {
-    const ts = new Date().toISOString();
-    // include unique marker [SG-LOG] for easy searching
-    // eslint-disable-next-line no-console
-    console.debug(`[SG-LOG] ${ts}`, ...args);
-  } catch (e) {
-    // ignore logging errors
-  }
-};
-
 export const buildTree = (items: StaffGroup[]): TreeNode[] => {
-  sgLog('buildTree START items.length=', items?.length);
   const map = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
   // Filter out any invalid items without proper id
@@ -103,34 +91,24 @@ export const buildTree = (items: StaffGroup[]): TreeNode[] => {
   sorted.forEach((item) => {
     if (item.id) {
       map.set(item.id, { ...item, children: [] } as TreeNode);
-      sgLog('buildTree added map node', item.id, 'parentId=', item.parentId);
     }
   });
 
   // Helper: detect if parent would create a cycle (parent is a descendant of child)
   const wouldCreateCycle = (childId: string, parentId: string | null): boolean => {
-    sgLog('wouldCreateCycle check child=', childId, 'parent=', parentId);
     if (!parentId) return false;
     let current = parentId;
     const visited = new Set<string>();
     let depth = 0;
     while (current && depth < MAX_TREE_DEPTH) {
-      sgLog('wouldCreateCycle visiting', current, 'depth=', depth);
-      if (visited.has(current)) {
-        sgLog('wouldCreateCycle detected cycle via visited', current);
-        return true; // cycle
-      }
+      if (visited.has(current)) return true; // cycle
       visited.add(current);
-      if (current === childId) {
-        sgLog('wouldCreateCycle parent chain leads back to child', childId);
-        return true; // parent chain leads back to child
-      }
+      if (current === childId) return true; // parent chain leads back to child
       const parentItem = items.find(i => i.id === current);
       if (!parentItem || !parentItem.parentId) break;
       current = parentItem.parentId as string;
       depth++;
     }
-    sgLog('wouldCreateCycle no cycle detected for child=', childId, 'parent=', parentId);
     return false;
   };
 
@@ -138,46 +116,29 @@ export const buildTree = (items: StaffGroup[]): TreeNode[] => {
     if (!item.id) return;
     const node = map.get(item.id)!;
     // If parent is invalid or would create a cycle, treat as root
-    const treatAsRoot = !(item.parentId && map.has(item.parentId) && !wouldCreateCycle(item.id, item.parentId));
-    sgLog('buildTree placing node', item.id, 'parentId=', item.parentId, 'treatAsRoot=', treatAsRoot);
-    if (!treatAsRoot) {
+    if (item.parentId && map.has(item.parentId) && !wouldCreateCycle(item.id, item.parentId)) {
       map.get(item.parentId)!.children.push(node);
-      sgLog('buildTree linked', item.id, '-> parent', item.parentId);
     } else {
       roots.push(node);
-      sgLog('buildTree root', item.id);
     }
   });
-  sgLog('buildTree END roots.length=', roots.length);
   return roots;
 };
 
 export const isDescendant = (childId: string, ancestorId: string, items: StaffGroup[]): boolean => {
-  sgLog('isDescendant START child=', childId, 'ancestor=', ancestorId);
   // iterative with visited detection to avoid infinite recursion
   const visited = new Set<string>();
   let currentId: string | null = childId;
   let depth = 0;
   while (currentId && depth < MAX_TREE_DEPTH) {
-    sgLog('isDescendant checking currentId=', currentId, 'depth=', depth);
-    if (visited.has(currentId)) {
-      sgLog('isDescendant encountered visited cycle at', currentId, '-> returning false');
-      return false; // broken cycle -> not a proper descendant
-    }
+    if (visited.has(currentId)) return false; // broken cycle -> not a proper descendant
     visited.add(currentId);
     const item = items.find((i) => i.id === currentId);
-    if (!item || !item.parentId) {
-      sgLog('isDescendant reached null parent or missing item for', currentId, '-> returning false');
-      return false;
-    }
-    if (item.parentId === ancestorId) {
-      sgLog('isDescendant found ancestor match for', childId, 'ancestor=', ancestorId);
-      return true;
-    }
+    if (!item || !item.parentId) return false;
+    if (item.parentId === ancestorId) return true;
     currentId = item.parentId as string;
     depth++;
   }
-  sgLog('isDescendant END -> false for child=', childId, 'ancestor=', ancestorId);
   return false;
 };
 
@@ -216,7 +177,6 @@ export const StaffGroups: React.FC = () => {
           updatedAt: data.updatedAt,
         } as StaffGroup;
       }).filter(doc => doc.id); // filter out any items without valid id
-      sgLog('onSnapshot loaded docs', docs.map(d=>d.id));
       setItems(docs);
       setLoading(false);
     }, (err) => {
@@ -227,11 +187,7 @@ export const StaffGroups: React.FC = () => {
     return () => unsub();
   }, []);
 
-  const tree = useMemo(() => {
-    const t = buildTree(items);
-    sgLog('useMemo tree built roots=', t.map(r=>r.id));
-    return t;
-  }, [items]);
+  const tree = useMemo(() => buildTree(items), [items]);
 
   const openCreate = () => { setEditing(null); setFormOpen(true); };
   const openEdit = (g: StaffGroup) => { setEditing(g); setFormOpen(true); };
@@ -343,11 +299,9 @@ export const StaffGroups: React.FC = () => {
 
   // Sortable wrapper for TreeItem
   const SortableTreeNode: React.FC<{ node: TreeNode; depth?: number }> = ({ node, depth = 0 }) => {
-    sgLog('SortableTreeNode ENTRY', node?.id, 'depth=', depth);
     // Safety check - don't render if node doesn't have valid id
     if (!node || !node.id) {
       console.warn('SortableTreeNode: node missing id', node);
-      sgLog('SortableTreeNode EXIT missing id');
       return null;
     }
 
@@ -355,7 +309,6 @@ export const StaffGroups: React.FC = () => {
     const MAX_RENDER_DEPTH = 20;
     if (depth > MAX_RENDER_DEPTH) {
       console.warn('SortableTreeNode: max render depth exceeded for node', node.id);
-      sgLog('SortableTreeNode EXIT max render depth exceeded for', node.id);
       return (
         <div>
           <TreeItem nodeId={node.id} label={(
@@ -386,7 +339,7 @@ export const StaffGroups: React.FC = () => {
     // Filter children to ensure they all have valid ids and avoid cycles
     const validChildren = (node.children || []).filter(c => c && c.id);
 
-    const rendered = (
+    return (
       <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
         <TreeItem
           nodeId={node.id}
@@ -410,9 +363,6 @@ export const StaffGroups: React.FC = () => {
         </TreeItem>
       </div>
     );
-
-    sgLog('SortableTreeNode EXIT', node.id, 'depth=', depth, 'children=', validChildren.map(c=>c.id));
-    return rendered;
   };
 
   const cleanupBadData = async () => {
