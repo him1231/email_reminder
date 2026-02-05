@@ -6,6 +6,8 @@ import { SignInPage } from "./auth/SignInPage";
 
 // Lazy load pages
 const StaffList = lazy(() => import('./staff/StaffList').then(m => ({ default: m.StaffList })));
+const StaffEdit = lazy(() => import('./staff/StaffEdit').then(m => ({ default: m.StaffEdit })));
+const StaffGroups = lazy(() => import('./staff/StaffGroups').then(m => ({ default: m.StaffGroups })));
 const TemplateEditor = lazy(() => import('./templates/TemplateEditor').then(m => ({ default: m.TemplateEditor })));
 const EmailQueue = lazy(() => import('./email/EmailQueue').then(m => ({ default: m.EmailQueue })));
 const ComposeEmail = lazy(() => import('./email/ComposeEmail').then(m => ({ default: m.ComposeEmail })));
@@ -59,6 +61,8 @@ export const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Navigate to="/staff" replace />} />
               <Route path="/staff" element={<StaffList />} />
+              <Route path="/staff/:id/edit" element={<StaffEdit />} />
+              <Route path="/staff-groups" element={<StaffGroups />} />
               <Route path="/templates" element={<TemplateEditor />} />
               <Route path="/queue" element={<EmailQueue />} />
               <Route path="/compose" element={<ComposeEmail />} />
