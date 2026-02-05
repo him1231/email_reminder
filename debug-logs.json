@@ -1,0 +1,10 @@
+[
+  {
+    "type": "debug",
+    "text": "[env] app env probe: {firebaseConfigIsValid: false, hasProjectId: false}"
+  },
+  {
+    "type": "error",
+    "text": "Firebase config error — missing env: VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID. Create a `.env.local` at the repo root with the missing values, for example:\n\nVITE_FIREBASE_API_KEY=your_api_key\nVITE_FIREBASE_PROJECT_ID=your_project_id\nVITE_FIREBASE_APP_ID=your_app_id\n\nthen restart the dev server (npm run dev)."
+  }
+]
