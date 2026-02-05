@@ -170,6 +170,23 @@ export const StaffGroups: React.FC = () => {
     }
   };
 
+
+  const handleMove = async (id: string, newParentId: string|null, newIndex: number) => {
+    try {
+      const batch = writeBatch(db);
+      const snap = await getDocs(query(collection(db, 'staff_groups'), orderBy('order', 'asc')));
+      const docs = snap.docs.map(d=>({ id: d.id, ref: d.ref, data: d.data() }));
+      const targetDoc = docs.find(d=>d.id===id);
+      if (!targetDoc) return;
+      const siblings = docs.filter(d=> (d.data.parentId || null) === newParentId && d.id !== id).sort((a,b)=>(a.data.order||0)-(b.data.order||0));
+      siblings.splice(newIndex, 0, { id, ref: targetDoc.ref, data: { ...targetDoc.data } });
+      siblings.forEach((s, idx)=> batch.update(s.ref, { order: idx }));
+      batch.update(targetDoc.ref, { parentId: newParentId, updatedAt: serverTimestamp() });
+      await batch.commit();
+      setSnack({ open:true, message:'Group moved', severity:'success' });
+    } catch (e:any) { console.error(e); setSnack({ open:true, message:e.message||'Move failed', severity:'error' }); }
+  };
+
   // simple flat rendering (temporary)
   const renderFlatList = () => {
     return (
@@ -240,7 +257,7 @@ export const StaffGroups: React.FC = () => {
         <Card>
           <CardContent>
             {/* Flat/raw list rendering to avoid recursive tree rendering (temporary) */}
-            {renderFlatList()}
+            <StaffGroupsTree items={items.map(i=>({ id:i.id, name:i.name, parentId:i.parentId, order:i.order }))} onEdit={openEdit} onDelete={openDelete} onMove={handleMove} />
           </CardContent>
         </Card>
       )}
