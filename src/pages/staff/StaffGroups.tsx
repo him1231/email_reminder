@@ -82,7 +82,7 @@ type TreeNode = StaffGroup & { children: TreeNode[] };
 
 const MAX_TREE_DEPTH = 100;
 
-const buildTree = (items: StaffGroup[]): TreeNode[] => {
+export const buildTree = (items: StaffGroup[]): TreeNode[] => {
   const map = new Map<string, TreeNode>();
   const roots: TreeNode[] = [];
   // Filter out any invalid items without proper id
@@ -125,7 +125,7 @@ const buildTree = (items: StaffGroup[]): TreeNode[] => {
   return roots;
 };
 
-const isDescendant = (childId: string, ancestorId: string, items: StaffGroup[]): boolean => {
+export const isDescendant = (childId: string, ancestorId: string, items: StaffGroup[]): boolean => {
   // iterative with visited detection to avoid infinite recursion
   const visited = new Set<string>();
   let currentId: string | null = childId;
@@ -298,11 +298,30 @@ export const StaffGroups: React.FC = () => {
   };
 
   // Sortable wrapper for TreeItem
-  const SortableTreeNode: React.FC<{ node: TreeNode }> = ({ node }) => {
+  const SortableTreeNode: React.FC<{ node: TreeNode; depth?: number }> = ({ node, depth = 0 }) => {
     // Safety check - don't render if node doesn't have valid id
     if (!node || !node.id) {
       console.warn('SortableTreeNode: node missing id', node);
       return null;
+    }
+
+    // Depth guard to avoid infinite recursion / stack overflow
+    const MAX_RENDER_DEPTH = 20;
+    if (depth > MAX_RENDER_DEPTH) {
+      console.warn('SortableTreeNode: max render depth exceeded for node', node.id);
+      return (
+        <div>
+          <TreeItem nodeId={node.id} label={(
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <FolderIcon color="primary" />
+              <Box>
+                <Typography variant="body1">{node.name}</Typography>
+                <Typography variant="caption" color="text.secondary">Depth limit reached</Typography>
+              </Box>
+            </Stack>
+          )} />
+        </div>
+      );
     }
 
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
@@ -317,7 +336,7 @@ export const StaffGroups: React.FC = () => {
       borderRadius: 8,
     };
 
-    // Filter children to ensure they all have valid ids
+    // Filter children to ensure they all have valid ids and avoid cycles
     const validChildren = (node.children || []).filter(c => c && c.id);
 
     return (
@@ -340,7 +359,7 @@ export const StaffGroups: React.FC = () => {
             </Stack>
           )}
         >
-          {validChildren.map(c => <SortableTreeNode key={c.id} node={c} />)}
+          {validChildren.map(c => <SortableTreeNode key={c.id} node={c} depth={depth + 1} />)}
         </TreeItem>
       </div>
     );
