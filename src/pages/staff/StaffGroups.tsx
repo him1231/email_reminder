@@ -217,13 +217,13 @@ export const StaffGroups: React.FC = () => {
               // migration helper: backfill missing parentId/order
               if (!confirm('Run migration to backfill missing parentId/order for all groups?')) return;
               try {
-                const { collection, getDocs, writeBatch } = await import('firebase/firestore');
+                const { collection, getDocs, writeBatch, serverTimestamp } = await import('firebase/firestore');
                 const snap = await getDocs(collection(db, 'staff_groups'));
                 const batch = writeBatch(db);
                 snap.docs.forEach((d, idx) => {
                   const data:any = d.data();
                   if (!data.hasOwnProperty('parentId') || data.parentId === undefined) {
-                    batch.update(d.ref, { parentId: null, order: idx });
+                    batch.update(d.ref, { parentId: null, order: idx, updatedAt: serverTimestamp() });
                   }
                 });
                 await batch.commit();
