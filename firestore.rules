@@ -26,9 +26,22 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.name is string &&
         request.resource.data.email is string &&
+        // allow optional groupIds array of strings
+        (request.resource.data.groupIds is list || request.resource.data.groupIds == null) &&
         request.resource.data.createdAt == request.time &&
         request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
+    // --- Staff groups: only admins may create/update/delete groups; authenticated read allowed
+    match /staff_groups/{gid} {
+      allow read: if isSignedIn() || isEmulatorOpen();
+      allow create: if isAdmin() &&
+        request.resource.data.name is string &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin() && request.resource.data.name is string && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
     }
 
     // --- Templates: authenticated create; owner/admin update/delete ---
