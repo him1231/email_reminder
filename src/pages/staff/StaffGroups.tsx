@@ -267,6 +267,12 @@ export const StaffGroups: React.FC = () => {
 
   // Sortable wrapper for TreeItem
   const SortableTreeNode: React.FC<{ node: TreeNode }> = ({ node }) => {
+    // Safety check - don't render if node doesn't have valid id
+    if (!node || !node.id) {
+      console.warn('SortableTreeNode: node missing id', node);
+      return null;
+    }
+
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
     const style: React.CSSProperties = {
       transform: CSS.Transform.toString(transform),
@@ -278,6 +284,9 @@ export const StaffGroups: React.FC = () => {
       padding: '6px 8px',
       borderRadius: 8,
     };
+
+    // Filter children to ensure they all have valid ids
+    const validChildren = (node.children || []).filter(c => c && c.id);
 
     return (
       <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
@@ -299,17 +308,60 @@ export const StaffGroups: React.FC = () => {
             </Stack>
           )}
         >
-          {node.children.map(c => <SortableTreeNode key={c.id} node={c} />)}
+          {validChildren.map(c => <SortableTreeNode key={c.id} node={c} />)}
         </TreeItem>
       </div>
     );
+  };
+
+  const cleanupBadData = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'staff_groups'));
+      const batch = writeBatch(db);
+      let fixed = 0;
+      
+      snap.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const updates: any = {};
+        
+        // Ensure parentId is null or string
+        if (data.parentId === undefined) {
+          updates.parentId = null;
+        }
+        
+        // Ensure order is number
+        if (typeof data.order !== 'number') {
+          updates.order = 0;
+        }
+        
+        // Only update if needed
+        if (Object.keys(updates).length > 0) {
+          updates.updatedAt = serverTimestamp();
+          batch.update(docSnap.ref, updates);
+          fixed++;
+        }
+      });
+      
+      if (fixed > 0) {
+        await batch.commit();
+        setSnack({ open: true, message: `Fixed ${fixed} groups`, severity: 'success' });
+      } else {
+        setSnack({ open: true, message: 'No bad data found', severity: 'info' });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setSnack({ open: true, message: err.message || 'Cleanup failed', severity: 'error' });
+    }
   };
 
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Staff Groups</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Group</Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" size="small" onClick={cleanupBadData}>Fix Bad Data</Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Group</Button>
+        </Stack>
       </Stack>
 
       {loading ? (
@@ -332,9 +384,9 @@ export const StaffGroups: React.FC = () => {
         <Card>
           <CardContent>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <SortableContext items={items.map(i=>i.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={items.map(i=>i.id).filter(id => id)} strategy={verticalListSortingStrategy}>
                 <SimpleTreeView defaultExpandAll>
-                  {tree.map(r => <SortableTreeNode key={r.id} node={r} />)}
+                  {tree.filter(r => r && r.id).map(r => <SortableTreeNode key={r.id} node={r} />)}
                 </SimpleTreeView>
               </SortableContext>
               <DragOverlay>{activeId ? (<Card sx={{ p: 1 }}><Typography>{findItem(activeId)?.name}</Typography></Card>) : null}</DragOverlay>
