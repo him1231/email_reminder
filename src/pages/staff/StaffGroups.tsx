@@ -7,8 +7,13 @@ import TreeView from '@mui/lab/TreeView';
 import TreeItem from '@mui/lab/TreeItem';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, arrayRemove, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, arrayRemove, getDocs, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase/init';
+
+// dnd-kit
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type Group = { id: string; name: string; description?: string; parentId?: string | null; order?: number };
 
@@ -18,6 +23,9 @@ export const StaffGroups: React.FC = () => {
   const [editing, setEditing] = useState<Group | null>(null);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+
+  // dnd state
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'staff_groups'), orderBy('order', 'asc'));
@@ -83,22 +91,105 @@ export const StaffGroups: React.FC = () => {
     }
   };
 
-  const renderNode = (node: Group & { children?: Group[] }) => (
-    <TreeItem key={node.id} nodeId={node.id} label={(
-      <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
-        <Box>
-          <Typography variant="body1">{node.name}</Typography>
-          <Typography variant="caption" color="text.secondary">{node.description}</Typography>
-        </Box>
-        <Stack direction="row" spacing={1}>
-          <IconButton size="small" onClick={(e:any)=>{ e.stopPropagation(); setEditing(node); setName(node.name||''); setDesc(node.description||''); setParentId(node.parentId||null); setCreating(true); }}><EditIcon fontSize="small"/></IconButton>
-          <IconButton size="small" onClick={(e:any)=>{ e.stopPropagation(); remove(node); }}><DeleteIcon fontSize="small"/></IconButton>
-        </Stack>
-      </Stack>
-    )}>
-      {node.children?.map(c => renderNode(c as any))}
-    </TreeItem>
-  );
+  // helpers for dnd
+  const findItem = (id: string) => items.find(i => i.id === id);
+
+  const isDescendant = (potentialDescendant: string, ancestorId: string): boolean => {
+    const item = items.find(i => i.id === potentialDescendant);
+    if (!item) return false;
+    if (item.parentId === ancestorId) return true;
+    if (!item.parentId) return false;
+    return isDescendant(item.parentId as string, ancestorId);
+  };
+
+  const getSiblings = (parent: string | null) => items.filter(i => (i.parentId||null) === parent).sort((a,b)=> (a.order||0)-(b.order||0));
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(e.active.id as string);
+  };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+    const { active, over } = e;
+    setActiveId(null);
+    if (!over) return;
+    if (active.id === over.id) return;
+
+    const draggedId = active.id as string;
+    const targetId = over.id as string;
+    const dragged = findItem(draggedId);
+    const target = findItem(targetId);
+    if (!dragged || !target) return;
+
+    // prevent circular
+    if (isDescendant(targetId, draggedId)) {
+      alert('Cannot move parent into its own child');
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      // If dropping onto target -> make dragged child of target (change parent)
+      const newParentId = target.id;
+      if ((dragged.parentId||null) !== newParentId) {
+        // append to end of target's children
+        const targetChildren = getSiblings(newParentId);
+        const newOrder = targetChildren.length;
+        batch.update(doc(db, 'staff_groups', dragged.id), { parentId: newParentId, order: newOrder, updatedAt: serverTimestamp() });
+        // if dragged had siblings in old parent, re-sequence them
+        const oldSiblings = getSiblings(dragged.parentId || null).filter(s => s.id !== dragged.id);
+        oldSiblings.forEach((s, idx) => batch.update(doc(db, 'staff_groups', s.id), { order: idx, updatedAt: serverTimestamp() }));
+      } else {
+        // same parent -> reorder among siblings based on target position
+        const parent = dragged.parentId || null;
+        const siblings = getSiblings(parent).filter(s => s.id !== dragged.id);
+        // determine target index
+        const targetIndex = siblings.findIndex(s => s.id === target.id);
+        const newOrderList: Group[] = [];
+        // build new ordering inserting dragged before targetIndex (we'll insert at targetIndex)
+        siblings.forEach(s => newOrderList.push(s));
+        newOrderList.splice(targetIndex, 0, dragged);
+        // write sequential orders
+        newOrderList.forEach((s, idx) => {
+          const id = s.id;
+          // if id === dragged.id then update parentId may not change
+          batch.update(doc(db, 'staff_groups', id), { order: idx, updatedAt: serverTimestamp() });
+        });
+      }
+      await batch.commit();
+    } catch (err:any) {
+      console.error(err);
+      alert('Unable to reorder: ' + err.message);
+    }
+  };
+
+  // Sortable wrapper component for TreeItem
+  const SortableTreeItem: React.FC<{ node: Group & { children?: Group[] } }> = ({ node }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
+    const style: React.CSSProperties = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        <TreeItem nodeId={node.id} label={(
+          <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
+            <Box>
+              <Typography variant="body1">{node.name}</Typography>
+              <Typography variant="caption" color="text.secondary">{node.description}</Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <IconButton size="small" onClick={(e:any)=>{ e.stopPropagation(); setEditing(node); setName(node.name||''); setDesc(node.description||''); setParentId(node.parentId||null); setCreating(true); }}><EditIcon fontSize="small"/></IconButton>
+              <IconButton size="small" onClick={(e:any)=>{ e.stopPropagation(); remove(node); }}><DeleteIcon fontSize="small"/></IconButton>
+            </Stack>
+          </Stack>
+        )}>
+          {node.children?.map(c => <SortableTreeItem key={c.id} node={c as any} />)}
+        </TreeItem>
+      </div>
+    );
+  };
 
   return (
     <Box>
@@ -147,12 +238,17 @@ export const StaffGroups: React.FC = () => {
 
       <Card>
         <CardContent>
-          <TreeView
-            defaultCollapseIcon={<ExpandMoreIcon />}
-            defaultExpandIcon={<ChevronRightIcon />}
-          >
-            {tree.map(r => renderNode(r))}
-          </TreeView>
+          <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i=>i.id)} strategy={verticalListSortingStrategy}>
+              <TreeView
+                defaultCollapseIcon={<ExpandMoreIcon />}
+                defaultExpandIcon={<ChevronRightIcon />}
+              >
+                {tree.map(r => <SortableTreeItem key={r.id} node={r} />)}
+              </TreeView>
+            </SortableContext>
+            <DragOverlay>{activeId ? <Card sx={{p:1}}><Typography>{findItem(activeId)?.name}</Typography></Card> : null}</DragOverlay>
+          </DndContext>
         </CardContent>
       </Card>
     </Box>
