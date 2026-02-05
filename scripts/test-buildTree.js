@@ -1,61 +1,28 @@
-// Simple Node test to ensure buildTree logic handles cycles without throwing
-const MAX_TREE_DEPTH = 100;
+const { buildTree, isDescendant, wouldCreateCycle, MAX_TREE_DEPTH } = require('../src/lib/staffTree');
 
-function buildTree(items) {
-  const map = new Map();
-  const roots = [];
-  const validItems = items.filter(item => item && item.id && typeof item.id === 'string');
-  const sorted = [...validItems].sort((a, b) => (a.order || 0) - (b.order || 0));
-  sorted.forEach((item) => {
-    if (item.id) {
-      map.set(item.id, { ...item, children: [] });
-    }
-  });
+// simple test runner
+function assert(cond, msg){ if(!cond) { console.error('FAIL:', msg); process.exit(1); } }
 
-  const wouldCreateCycle = (childId, parentId) => {
-    if (!parentId) return false;
-    let current = parentId;
-    const visited = new Set();
-    let depth = 0;
-    while (current && depth < MAX_TREE_DEPTH) {
-      if (visited.has(current)) return true;
-      visited.add(current);
-      if (current === childId) return true;
-      const parentItem = items.find(i => i.id === current);
-      if (!parentItem || !parentItem.parentId) break;
-      current = parentItem.parentId;
-      depth++;
-    }
-    return false;
-  };
+const items = [
+  { id: 'a', parentId: null },
+  { id: 'b', parentId: 'a' },
+  { id: 'c', parentId: 'b' },
+  { id: 'd', parentId: 'c' },
+];
 
-  sorted.forEach((item) => {
-    if (!item.id) return;
-    const node = map.get(item.id);
-    if (item.parentId && map.has(item.parentId) && !wouldCreateCycle(item.id, item.parentId)) {
-      map.get(item.parentId).children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-  return roots;
-}
+const tree = buildTree(items);
+assert(tree.length === 1, 'root count');
+assert(tree[0].children.length === 1, 'a->b');
 
-function runTest() {
-  const items = [
-    { id: 'A', name: 'A', parentId: 'C', order: 0 },
-    { id: 'B', name: 'B', parentId: 'A', order: 0 },
-    { id: 'C', name: 'C', parentId: 'B', order: 0 },
-  ];
-  try {
-    const tree = buildTree(items);
-    console.log('buildTree returned', JSON.stringify(tree, null, 2));
-    console.log('OK: no RangeError');
-    process.exit(0);
-  } catch (err) {
-    console.error('ERROR', err);
-    process.exit(2);
-  }
-}
+assert(isDescendant(items, 'a', 'd') === true, 'a is ancestor of d');
+assert(isDescendant(items, 'b', 'a') === false, 'b not ancestor of a');
 
-runTest();
+// cycle detection
+const itemsCycle = [
+  { id: '1', parentId: '3' },
+  { id: '2', parentId: '1' },
+  { id: '3', parentId: '2' },
+];
+assert(wouldCreateCycle(itemsCycle, '1', '2') === true, 'moving 1 under 2 creates cycle');
+
+console.log('All tests passed');
