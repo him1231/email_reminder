@@ -106,6 +106,8 @@ export const StaffList: React.FC = () => {
                         }
                       }}>Add to queue</Button>
 
+                      <Button size="small" onClick={() => window.location.hash = `#/staff/${s.id}/edit`}>Edit</Button>
+
                       {auth.currentUser?.uid === s.createdBy && (
                         <IconButton aria-label="delete-staff" size="small" onClick={async () => {
                           const ok = window.confirm(`Delete staff “${s.name}”? This cannot be undone.`);

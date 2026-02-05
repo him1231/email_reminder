@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Grid, Stack, TextField } from "@mui/material";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
@@ -6,6 +6,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase/init";
 
 const StaffSchema = Yup.object().shape({
+  groupIds: Yup.array(),
   name: Yup.string().required("Name is required"),
   staffNo: Yup.string().required("Staff number is required"),
   email: Yup.string().email("Invalid email").required("Email is required"),
@@ -13,9 +14,19 @@ const StaffSchema = Yup.object().shape({
 });
 
 export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
+  const [groups, setGroups] = useState<any[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { collection, getDocs, orderBy, query } = await import('firebase/firestore');
+      const q = query(collection(db, "staff_groups"), orderBy('createdAt', 'desc'));
+      const snap = await getDocs(q);
+      setGroups(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    })();
+  }, []);
+
   return (
     <Formik
-      initialValues={{ name: "", staffNo: "", email: "", contractEffectiveDate: "" }}
+      initialValues={{ name: "", staffNo: "", email: "", contractEffectiveDate: "", groupIds: [] }}
       validationSchema={StaffSchema}
       onSubmit={async (values, { setSubmitting }) => {
         try {
@@ -25,6 +36,7 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             staffNo: values.staffNo,
             email: values.email,
             contractEffectiveDate: new Date(values.contractEffectiveDate),
+                groupIds: values.groupIds || [],
             createdAt: serverTimestamp(),
             createdBy: auth.currentUser.uid,
           });
