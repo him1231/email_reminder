@@ -1,30 +1,29 @@
-# Email Reminder — Phase 1 (client-only MVP)
+# Email Reminder — Demo
 
-This repository contains the Email Reminder frontend (Phase-1): a client-only, GitHub Pages–deployable SPA that uses Firebase Auth + Firestore (client SDK) and provides manual-send workflows, template editing, and tokenized unsubscribe.
+This project is a small demo for queuing and sending reminder emails using Firestore and a scheduled backend.
 
-Quick start
-1. Copy `.env.example` to `.env.local` and fill in values.
-2. Install: `npm ci`
-3. Run dev: `npm run dev`
-4. Run emulator tests: `npm run emulator:test`
+Admin: managing staff groups
 
-Local development — Firebase setup
+- A new Firestore collection `staff_groups` stores groups with fields: name, description, createdBy, createdAt, updatedAt.
+- Staff documents now support `groupIds` (array of group document IDs).
 
-If you see an error like `Firebase config error — missing env: VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID`, create a `.env.local` at the repo root and add your Firebase *Web app* credentials (do **not** commit secrets):
+To manage groups in the web UI (admins only):
+- Open the app and sign in as an admin user.
+- Go to the "Staff groups" page (top navigation or visit `#/staff-groups`).
+- Create, edit, or delete groups. Deleting a group will remove its id from any staff.groupIds (no staff documents are deleted).
 
-```bash
-# .env.local (local only)
-VITE_FIREBASE_API_KEY=AIza...YOUR_WEB_API_KEY...
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_APP_ID=1:123456:web:abcdef
-```
+Firestore rules and indexes
 
-Helpful checks:
-Helpful checks:
-- Use the **Web app** credentials from Firebase Console → Project settings → Your apps.
-- Add `localhost` and `127.0.0.1` to Authentication → Authorized domains.
-- For CI / GitHub Pages: add repository Secrets and map them into Actions (names used by the workflow): `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` and `FIREBASE_PROJECT_ID` (for emulator runs). The workflow is fork‑safe: emulator and visual steps are gated and will be skipped for forked PRs when secrets are not available.
+- Firestore rules updated to allow CRUD for `staff_groups` and to accept `groupIds` on staff writes. Only admins may create/update/delete groups.
+- An index entry for querying staff by `groupIds` has been added to `firestore.indexes.json`.
 
-  Recommended: add your project's Authorized Domains (Firebase Console → Authentication) including `your-org.github.io` and `localhost`.
+Testing / manual steps
 
-For full setup and the Phase‑1 runbook see `docs/PHASE1-RUNBOOK.md`.
+1. As an admin user, create a few staff groups via `#/staff-groups`.
+2. Add a staff via "Add staff" and select groups (multi-select) when editing the staff.
+3. Edit a staff via the Edit button on the staff card and change group assignments.
+4. Delete a group and verify that existing staff documents no longer contain that group id in their `groupIds` array.
+
+Branch
+
+Changes are on branch `feature/multi-group-staff`.
