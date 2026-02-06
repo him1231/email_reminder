@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import StaffDetailDrawer from "../../../src/components/StaffDetailDrawer";
+import StaffDetailDrawer from "../../components/StaffDetailDrawer";
 import { Box, Button, Card, CardContent, Grid, IconButton, Stack, TextField, Typography } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
