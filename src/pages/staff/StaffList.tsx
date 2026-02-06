@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import StaffDetailDrawer from "../../../src/components/StaffDetailDrawer";
 import { Box, Button, Card, CardContent, Grid, IconButton, Stack, TextField, Typography } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -8,6 +9,8 @@ import { db, auth } from "../../lib/firebase/init";
 import { StaffForm } from "./StaffForm";
 
 export const StaffList: React.FC = () => {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerStaffId, setDrawerStaffId] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
@@ -76,7 +79,7 @@ export const StaffList: React.FC = () => {
           visible.map((s) => (
             <Grid item xs={12} sm={6} md={4} key={s.id}>
               <Card>
-                <CardContent>
+                <CardContent onClick={(e) => { /* open drawer unless click came from an action */ if ((e.target as HTMLElement).closest('button')) return; setDrawerStaffId(s.id); setDrawerOpen(true); }} sx={{ cursor: 'pointer' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="start">
                     <Box>
                       <Typography variant="subtitle1">{s.name}</Typography>
@@ -120,6 +123,8 @@ export const StaffList: React.FC = () => {
           </Grid>
         )}
       </Grid>
+
+      <StaffDetailDrawer open={drawerOpen} staffId={drawerStaffId || ''} onClose={() => { setDrawerOpen(false); setDrawerStaffId(null); }} />
     </Box>
   );
 };
