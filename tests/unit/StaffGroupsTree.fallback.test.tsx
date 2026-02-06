@@ -10,7 +10,7 @@ test('fallback tree is collapsible and shows nested children on toggle', () => {
     { id: 'r2', name: 'Root 2', parentId: null, order: 1 },
   ];
 
-  render(<StaffGroupsTree items={items as any} onEdit={jest.fn()} onDelete={jest.fn()} onMove={jest.fn()} />);
+  const { rerender } = render(<StaffGroupsTree items={items as any} onEdit={jest.fn()} onDelete={jest.fn()} onMove={jest.fn()} />);
 
   // children should be hidden by default
   expect(screen.queryByText('A')).toBeNull();
@@ -28,7 +28,7 @@ test('fallback tree is collapsible and shows nested children on toggle', () => {
   expect(screen.getByText('B')).toBeDefined();
 
   // when defaultExpandAll is true, children are visible initially
-  const { rerender } = render(<StaffGroupsTree defaultExpandAll items={items as any} onEdit={jest.fn()} onDelete={jest.fn()} onMove={jest.fn()} />);
+  rerender(<StaffGroupsTree defaultExpandAll items={items as any} onEdit={jest.fn()} onDelete={jest.fn()} onMove={jest.fn()} />);
   expect(screen.getByText('A')).toBeDefined();
   expect(screen.getByText('B')).toBeDefined();
 });

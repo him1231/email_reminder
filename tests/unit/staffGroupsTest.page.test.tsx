@@ -9,6 +9,15 @@ test('StaffGroupsTest shows tree and detects cycle dataset', () => {
   expect(screen.getByText('Root 1')).toBeDefined();
   expect(screen.getByText('A')).toBeDefined();
   expect(screen.getByText('B')).toBeDefined();
+
+  // collapse all using the control
+  fireEvent.click(screen.getByText(/Collapse all/i));
+  expect(screen.queryByText('A')).toBeNull();
+
+  // expand all using the control
+  fireEvent.click(screen.getByText(/Expand all/i));
+  expect(screen.getByText('A')).toBeDefined();
+
   // switch to cyclic dataset
   fireEvent.click(screen.getByText(/Cyclic dataset/i));
   expect(screen.getByText(/Invalid group relationships detected/i)).toBeDefined();

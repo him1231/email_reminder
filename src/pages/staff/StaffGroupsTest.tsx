@@ -18,6 +18,9 @@ export const StaffGroupsTest: React.FC = () => {
   ];
 
   const [useCyclic, setUseCyclic] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  // force remount when expand state changes so uncontrolled TreeView honors defaultExpandAll
+  const treeKey = `${expanded ? 'expanded' : 'collapsed'}-${useCyclic ? 'cy' : 'cl'}`;
   const data = useCyclic ? cyclic : clean;
 
   return (
@@ -26,6 +29,10 @@ export const StaffGroupsTest: React.FC = () => {
       <Stack direction="row" spacing={1} mb={2}>
         <Button variant={useCyclic ? 'outlined' : 'contained'} onClick={() => setUseCyclic(false)}>Clean dataset</Button>
         <Button variant={useCyclic ? 'contained' : 'outlined'} color="warning" onClick={() => setUseCyclic(true)}>Cyclic dataset</Button>
+
+        <Box sx={{ width: 16 }} />
+        <Button variant={expanded ? 'contained' : 'outlined'} onClick={() => setExpanded(true)}>Expand all</Button>
+        <Button variant={!expanded ? 'contained' : 'outlined'} onClick={() => setExpanded(false)}>Collapse all</Button>
       </Stack>
 
       <Card>
@@ -33,7 +40,7 @@ export const StaffGroupsTest: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This page is a lightweight playground for the staff-groups tree component. It does not mutate Firestore.
           </Typography>
-          <StaffGroupsTree defaultExpandAll items={data as any} onEdit={() => {}} onDelete={() => {}} onMove={async () => { /* noop */ }} />
+          <StaffGroupsTree key={treeKey} defaultExpandAll={expanded} items={data as any} onEdit={() => {}} onDelete={() => {}} onMove={async () => { /* noop */ }} />
         </CardContent>
       </Card>
     </Box>
