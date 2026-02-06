@@ -14,21 +14,44 @@ try {
     throw new Error('incomplete @mui/x-tree-view');
   }
 } catch (err) {
-  // fallback implementation used only in tests / environments where @mui/x-tree-view
-  // isn't available/usable. Keeps DOM structure predictable for unit tests.
-  TreeView = ({ children }: any) => <div>{children}</div>;
-  TreeItem = ({ label, children }: any) => (
-    <div data-testid={typeof label === 'string' ? `treeitem-${label}` : undefined}>
-      <div>{label}</div>
-      <div>{children}</div>
-    </div>
-  );
+  // fallback implementation used only in tests / constrained dev environments.
+  // Provide a fully interactive, accessible disclosure tree so the UI behaves
+  // like the real MUI TreeView even when the package can't be resolved.
+  const FallbackItem: React.FC<{ nodeId?: string; label: React.ReactNode; children?: React.ReactNode }> = ({ nodeId, label, children }) => {
+    const [open, setOpen] = React.useState(false);
+    const hasChildren = Boolean(children);
+    const toggleLabel = nodeId ? `toggle-${nodeId}` : (typeof label === 'string' ? `toggle-${label}` : 'toggle');
+    return (
+      <div style={{ paddingLeft: 8, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {hasChildren ? (
+            <button aria-expanded={open} onClick={() => setOpen(s => !s)} aria-label={toggleLabel} style={{ background: 'none', border: 0, padding: 4, cursor: 'pointer' }}>
+              <span style={{ display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none' }}>▸</span>
+            </button>
+          ) : <span style={{ width: 20 }} />}
+          <div>{label}</div>
+        </div>
+        {hasChildren && open ? <div style={{ marginLeft: 20 }}>{children}</div> : null}
+      </div>
+    );
+  };
+
+  TreeView = ({ children }: any) => <div role="tree">{children}</div>;
+  TreeItem = FallbackItem as any;
 }
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 
-import { buildForestSafe } from '../lib/staffTree';
+// Prefer a synchronous require in Node/jest environments; fall back to dynamic import in the browser dev server.
+let buildForestSafeSync: ((items: any[]) => { tree: any[]; cycles: string[] }) | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require('../lib/staffTree') as any;
+  if (mod && typeof mod.buildForestSafe === 'function') buildForestSafeSync = mod.buildForestSafe;
+} catch (err) {
+  buildForestSafeSync = null;
+}
 
 type Group = { id: string; name: string; parentId?: string | null; order?: number };
 
@@ -40,8 +63,50 @@ type Props = {
 };
 
 export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMove }) => {
-  const { tree, cycles } = React.useMemo(() => buildForestSafe(items), [items]);
+  // If sync loader is available (jest/node), use it for immediate rendering (keeps tests simple).
+  // Otherwise perform dynamic import at runtime and render a friendly error/placeholder on failure.
+  const [asyncState, setAsyncState] = React.useState<{ tree: any[]; cycles: string[]; loadError?: string | null } | null>(
+    buildForestSafeSync ? { tree: buildForestSafeSync(items).tree, cycles: buildForestSafeSync(items).cycles, loadError: null } : null
+  );
+
+  React.useEffect(() => {
+    if (buildForestSafeSync) return; // already computed synchronously
+    let mounted = true;
+    (async () => {
+      try {
+        const mod = await import('../lib/staffTree');
+        const res = mod.buildForestSafe(items);
+        if (!mounted) return;
+        setAsyncState({ tree: res.tree, cycles: res.cycles, loadError: null });
+      } catch (err: any) {
+        if (!mounted) return;
+        setAsyncState({ tree: [], cycles: [], loadError: err?.message || String(err) });
+      }
+    })();
+    return () => { mounted = false; };
+  }, [items]);
+
+  const tree = buildForestSafeSync ? buildForestSafeSync(items).tree : (asyncState?.tree || []);
+  const cycles = buildForestSafeSync ? buildForestSafeSync(items).cycles : (asyncState?.cycles || []);
+  const loadError = asyncState?.loadError ?? null;
+
   const [activeId, setActiveId] = React.useState<string | null>(null);
+
+  if (loadError) {
+    return (
+      <Box>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>Tree failed to load</AlertTitle>
+          The groups tree module failed to initialize: <strong>{String(loadError)}</strong>. The UI is showing a safe, read-only view. Check the console for details.
+        </Alert>
+        <Box sx={{ p: 1, border: '1px dashed', borderColor: 'divider' }}>
+          {items.map(i => (
+            <div key={i.id} style={{ padding: 6 }}>{i.name} <span style={{ color: '#666' }}>({i.id})</span></div>
+          ))}
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <DndContext
