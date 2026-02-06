@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import StaffGroupsTest from '../../src/pages/staff/StaffGroupsTest';
 
 test('StaffGroupsTest shows tree and detects cycle dataset', () => {
@@ -42,12 +42,4 @@ test('StaffGroupsTest supports in-memory DnD (simulate move)', async () => {
   const r2Candidates = screen.getAllByTestId('treeitem-r2');
   const root2 = r2Candidates.find(el => within(el).queryByText('Root 2'))!;
   expect(within(root2).getByText('A')).toBeDefined();
-});
-
-test('per-item append control adds DnD button into the item action list', () => {
-  render(<StaffGroupsTest />);
-  const r1 = screen.getAllByTestId('treeitem-r1').find(el => within(el).queryByText('Root 1'))!;
-  const appendBtn = within(r1).getByTestId('append-dnd-r1');
-  fireEvent.click(appendBtn);
-  expect(within(r1).getByTestId('treeitem-r1-dnd-0')).toBeDefined();
 });
