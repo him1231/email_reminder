@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Card, CardContent, Stack, Typography, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Snackbar, Alert, IconButton, Skeleton } from '@mui/material';
+import { Box, Button, Card, CardContent, Stack, Typography, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Snackbar, Alert, IconButton, Skeleton, Grid } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -214,19 +214,25 @@ export const GroupTasks: React.FC = () => {
                   {values.dueType === 'fixed' ? (
                     <TextField name="dueDate" label="Due date" type="date" value={values.dueDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
                   ) : (
-                    <Stack direction="row" spacing={2}>
-                      <TextField select label="Base field" name="relativeField" value={values.relativeField} onChange={handleChange} fullWidth>
-                        <MenuItem value="">-- select field --</MenuItem>
-                        {RELATIVE_BASE_FIELDS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-                      </TextField>
-                      <TextField name="relativeValue" label="Offset" type="number" value={values.relativeValue} onChange={handleChange} />
-                      <TextField select label="Unit" name="relativeUnit" value={values.relativeUnit} onChange={handleChange}>
-                        <MenuItem value="days">days</MenuItem>
-                        <MenuItem value="weeks">weeks</MenuItem>
-                        <MenuItem value="months">months</MenuItem>
-                        <MenuItem value="years">years</MenuItem>
-                      </TextField>
-                    </Stack>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12}>
+                        <TextField select label="Base field" name="relativeField" value={values.relativeField} onChange={handleChange} fullWidth>
+                          <MenuItem value="">-- select field --</MenuItem>
+                          {RELATIVE_BASE_FIELDS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+                        </TextField>
+                      </Grid>
+                      <Grid item xs={12} sm={7}>
+                        <TextField name="relativeValue" label="Offset" type="number" value={values.relativeValue} onChange={handleChange} fullWidth />
+                      </Grid>
+                      <Grid item xs={12} sm={5}>
+                        <TextField select label="Unit" name="relativeUnit" value={values.relativeUnit} onChange={handleChange} fullWidth>
+                          <MenuItem value="days">days</MenuItem>
+                          <MenuItem value="weeks">weeks</MenuItem>
+                          <MenuItem value="months">months</MenuItem>
+                          <MenuItem value="years">years</MenuItem>
+                        </TextField>
+                      </Grid>
+                    </Grid>
                   )}
 
                 </Stack>
