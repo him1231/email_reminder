@@ -11,8 +11,6 @@ import { SignInPage } from "./auth/SignInPage";
 const StaffList = lazy(() => import('./staff/StaffList').then(m => ({ default: m.StaffList })));
 const StaffEdit = lazy(() => import('./staff/StaffEdit').then(m => ({ default: m.StaffEdit })));
 const StaffGroups = lazy(() => import('./staff/StaffGroups').then(m => ({ default: m.StaffGroups })));
-const StaffGroupsTest = lazy(() => import('./staff/StaffGroupsTest').then(m => ({ default: m.StaffGroupsTest })));
-const StaffGroupsDnd = lazy(() => import('./staff/StaffGroupsDnd').then(m => ({ default: m.StaffGroupsDnd })));
 const TemplateEditor = lazy(() => import('./templates/TemplateEditor').then(m => ({ default: m.TemplateEditor })));
 
 const EmailQueue = lazy(() => import('./email/EmailQueue').then(m => ({ default: m.EmailQueue })));
@@ -20,18 +18,11 @@ const ComposeEmail = lazy(() => import('./email/ComposeEmail').then(m => ({ defa
 const RulesList = lazy(() => import('./rules/RulesList').then(m => ({ default: m.RulesList })));
 const RuleEditor = lazy(() => import('./rules/RuleEditor').then(m => ({ default: m.RuleEditor })));
 
-// Lazy-load the dev banner so the main app and tests don't eagerly execute browser-only code.
-const DevSetupBanner = lazy(() => import('../components/DevSetupBanner').then(m => ({ default: m.DevSetupBanner })));
-
-function NavigationItems({ onClick }: { onClick?: () => void }) {
-  const location = useLocation();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('md'));
   const items = [
     { to: '/staff', label: 'Staff' },
     { to: '/staff-groups', label: 'Staff Groups' },
-    { to: '/staff-groups-test', label: 'Staff Groups (test)' },
-    { to: '/staff-groups-dnd', label: 'Staff Groups (dnd)' },
     { to: '/templates', label: 'Templates' },
     { to: '/compose', label: 'Compose' },
     { to: '/rules', label: 'Rules' },
@@ -141,8 +132,6 @@ export const App: React.FC = () => {
               <Route path="/staff" element={<StaffList />} />
               <Route path="/staff/:id/edit" element={<StaffEdit />} />
               <Route path="/staff-groups" element={<StaffGroups />} />
-              <Route path="/staff-groups-test" element={<StaffGroupsTest />} />
-              <Route path="/staff-groups-dnd" element={<StaffGroupsDnd />} />
               <Route path="/templates" element={<TemplateEditor />} />
               <Route path="/queue" element={<EmailQueue />} />
               <Route path="/compose" element={<ComposeEmail />} />
