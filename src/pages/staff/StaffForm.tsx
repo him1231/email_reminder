@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
+import GroupCheckboxTree from '../../components/GroupCheckboxTree';
 import { Button, Grid, Stack, TextField, MenuItem, Select, InputLabel, FormControl, Chip, Box } from "@mui/material";
 import { Formik, Form, Field } from "formik";
 import * as Yup from "yup";
@@ -24,47 +25,8 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     })();
   }, []);
 
-  // build tree
-  const tree = useMemo(() => {
-    const map = new Map<string, any>();
-    groups.forEach(g => map.set(g.id, { ...g, children: [] }));
-    const roots: any[] = [];
-    map.forEach(v => {
-      const pid = v.parentId || null;
-      if (pid && map.has(pid)) map.get(pid).children.push(v);
-      else roots.push(v);
-    });
-    const sortRec = (nodes:any[]) => nodes.sort((a,b)=> (a.order||0)-(b.order||0)).forEach(n=>n.children && sortRec(n.children));
-    sortRec(roots);
-    return roots;
-  }, [groups]);
-
-  const renderCheckboxTree = (nodes:any[], values:any, setFieldValue:any, prefixChecked = true) => (
-    nodes.map(node => {
-      const parentChecked = prefixChecked;
-      const checked = Boolean(values.groupIds?.includes(node.id));
-      const disabled = !parentChecked; // children visible/selectable only if parent is checked
-      return (
-        <Box key={node.id} sx={{ pl: 2 }}>
-          <label>
-            <input type="checkbox" checked={checked} disabled={!node.parentId && false ? false : disabled} onChange={(e:any) => {
-              if (e.target.checked) {
-                // add this id
-                setFieldValue('groupIds', Array.from(new Set([...(values.groupIds||[]), node.id])));
-              } else {
-                // remove this and all children
-                const removeIds: string[] = [];
-                const collect = (n:any) => { removeIds.push(n.id); n.children?.forEach((c:any)=>collect(c)); };
-                collect(node);
-                setFieldValue('groupIds', (values.groupIds||[]).filter((id:string)=>!removeIds.includes(id)));
-              }
-            }} /> {node.name}
-          </label>
-          {node.children && node.children.length>0 && (values.groupIds||[]).includes(node.id) && renderCheckboxTree(node.children, values, setFieldValue, true)}
-        </Box>
-      );
-    })
-  );
+  // build tree handled by shared `GroupCheckboxTree` component — pass `groups` directly to it
+  // (keeps fetching logic here; rendering delegated to shared component)
 
   return (
     <Formik
@@ -119,7 +81,7 @@ export const StaffForm: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               <Box>
                 <InputLabel id="groups-label">Groups</InputLabel>
                 <Box sx={{ border: '1px solid #eee', borderRadius: 1, p:1, maxHeight: 300, overflow: 'auto' }}>
-                  {renderCheckboxTree(tree, { groupIds: values.groupIds }, setFieldValue)}
+                  <GroupCheckboxTree groups={groups} values={values} setFieldValue={setFieldValue} />
                 </Box>
               </Box>
             </Grid>
