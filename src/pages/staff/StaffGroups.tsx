@@ -218,27 +218,8 @@ export const StaffGroups: React.FC = () => {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Staff Groups</Typography>
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" onClick={() => {
-            (async () => {
-              try {
-                const snap = await getDocs(collection(db, 'staff_groups'));
-                const batch = writeBatch(db);
-                let fixed = 0;
-                snap.docs.forEach(docSnap => {
-                  const data:any = docSnap.data();
-                  const updates:any = {};
-                  if (data.parentId === undefined) updates.parentId = null;
-                  if (typeof data.order !== 'number') updates.order = 0;
-                  if (Object.keys(updates).length > 0) { updates.updatedAt = serverTimestamp(); batch.update(docSnap.ref, updates); fixed++; }
-                });
-                if (fixed > 0) { await batch.commit(); setSnack({ open:true, message:`Fixed ${fixed} groups`, severity:'success' }); }
-                else setSnack({ open:true, message:'No bad data found', severity:'info' });
-              } catch (e:any) { console.error(e); setSnack({ open:true, message:e.message||'Cleanup failed', severity:'error' }); }
-            })();
-          }}>Fix Bad Data</Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Group</Button>
-        </Stack>
-      </Stack>
+        </Stack>      </Stack>
 
       {loading ? (
         <Card>
