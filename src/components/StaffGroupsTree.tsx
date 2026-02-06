@@ -17,19 +17,19 @@ try {
   // fallback implementation used only in tests / constrained dev environments.
   // Provide a fully interactive, accessible disclosure tree so the UI behaves
   // like the real MUI TreeView even when the package can't be resolved.
-  const FallbackItem: React.FC<{ nodeId?: string; label: React.ReactNode; children?: React.ReactNode }> = ({ nodeId, label, children }) => {
-    const [open, setOpen] = React.useState(false);
+  const FallbackItem: React.FC<{ nodeId?: string; label: React.ReactNode; children?: React.ReactNode; defaultOpen?: boolean }> = ({ nodeId, label, children, defaultOpen }) => {
+    const [open, setOpen] = React.useState(Boolean(defaultOpen));
     const hasChildren = Boolean(children);
     const toggleLabel = nodeId ? `toggle-${nodeId}` : (typeof label === 'string' ? `toggle-${label}` : 'toggle');
     return (
-      <div style={{ paddingLeft: 8, marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div data-testid={nodeId ? `treeitem-${nodeId}` : undefined} style={{ paddingLeft: 8, marginBottom: 6, width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: '1px solid', borderColor: '#e0e0e0', borderRadius: 6, padding: '8px 12px', boxSizing: 'border-box' }}>
           {hasChildren ? (
             <button aria-expanded={open} onClick={() => setOpen(s => !s)} aria-label={toggleLabel} style={{ background: 'none', border: 0, padding: 4, cursor: 'pointer' }}>
               <span style={{ display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none' }}>▸</span>
             </button>
           ) : <span style={{ width: 20 }} />}
-          <div>{label}</div>
+          <div style={{ flex: 1 }}>{label}</div>
         </div>
         {hasChildren && open ? <div style={{ marginLeft: 20 }}>{children}</div> : null}
       </div>
@@ -60,9 +60,11 @@ type Props = {
   onEdit: (g: Group)=>void;
   onDelete: (g: Group)=>void;
   onMove: (id: string, newParentId: string|null, newIndex: number)=>Promise<void>;
+  /** when true, expand all nodes initially */
+  defaultExpandAll?: boolean;
 };
 
-export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMove }) => {
+export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMove, defaultExpandAll = false }) => {
   // If sync loader is available (jest/node), use it for immediate rendering (keeps tests simple).
   // Otherwise perform dynamic import at runtime and render a friendly error/placeholder on failure.
   const [asyncState, setAsyncState] = React.useState<{ tree: any[]; cycles: string[]; loadError?: string | null } | null>(
@@ -90,6 +92,7 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
   const cycles = buildForestSafeSync ? buildForestSafeSync(items).cycles : (asyncState?.cycles || []);
   const loadError = asyncState?.loadError ?? null;
 
+  const allIds = items.map(i => i.id);
   const [activeId, setActiveId] = React.useState<string | null>(null);
 
   if (loadError) {
@@ -134,9 +137,9 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
           </Alert>
         ) : null}
 
-        <TreeView defaultCollapseIcon={<span>-</span>} defaultExpandIcon={<span>+</span>}>
+        <TreeView defaultCollapseIcon={<span>-</span>} defaultExpandIcon={<span>+</span>} defaultExpanded={defaultExpandAll ? allIds : undefined}>
           {tree.map(node=> (
-            <TreeNode key={node.id} node={node} onEdit={onEdit} onDelete={onDelete} />
+            <TreeNode key={node.id} node={node} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />
           ))}
         </TreeView>
         <DragOverlay>{activeId ? <Box sx={{p:1, bgcolor:'background.paper', border:1}}>{items.find(i=>i.id===activeId)?.name}</Box> : null}</DragOverlay>
@@ -145,18 +148,20 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
   );
 };
 
-const TreeNode: React.FC<{ node: any; onEdit: any; onDelete: any }> = ({ node, onEdit, onDelete }) => {
+const TreeNode: React.FC<{ node: any; onEdit: any; onDelete: any; defaultExpandAll?: boolean }> = ({ node, onEdit, onDelete, defaultExpandAll }) => {
   return (
-    <TreeItem nodeId={node.id} label={(
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{width:'100%'}}>
-        <Typography>{node.name}</Typography>
-        <Stack direction="row" spacing={1}>
-          <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onEdit(node); }}><EditIcon fontSize="small"/></IconButton>
-          <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onDelete(node); }}><DeleteIcon fontSize="small"/></IconButton>
+    <TreeItem nodeId={node.id} defaultOpen={defaultExpandAll} label={(
+      <Box data-testid={`treeitem-${node.id}`} sx={{ width: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 1, py: 1, px: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{width:'100%'}}>
+          <Typography>{node.name}</Typography>
+          <Stack direction="row" spacing={1}>
+            <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onEdit(node); }}><EditIcon fontSize="small"/></IconButton>
+            <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onDelete(node); }}><DeleteIcon fontSize="small"/></IconButton>
+          </Stack>
         </Stack>
-      </Stack>
+      </Box>
     )}>
-      {node.children.map((c:any)=> <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} />)}
+      {node.children.map((c:any)=> <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />)}
     </TreeItem>
   );
 };

@@ -26,4 +26,9 @@ test('fallback tree is collapsible and shows nested children on toggle', () => {
   const toggleA = screen.getByLabelText(/toggle-a/i);
   fireEvent.click(toggleA);
   expect(screen.getByText('B')).toBeDefined();
+
+  // when defaultExpandAll is true, children are visible initially
+  const { rerender } = render(<StaffGroupsTree defaultExpandAll items={items as any} onEdit={jest.fn()} onDelete={jest.fn()} onMove={jest.fn()} />);
+  expect(screen.getByText('A')).toBeDefined();
+  expect(screen.getByText('B')).toBeDefined();
 });

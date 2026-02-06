@@ -33,7 +33,7 @@ export const StaffGroupsTest: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This page is a lightweight playground for the staff-groups tree component. It does not mutate Firestore.
           </Typography>
-          <StaffGroupsTree items={data as any} onEdit={() => {}} onDelete={() => {}} onMove={async () => { /* noop */ }} />
+          <StaffGroupsTree defaultExpandAll items={data as any} onEdit={() => {}} onDelete={() => {}} onMove={async () => { /* noop */ }} />
         </CardContent>
       </Card>
     </Box>
