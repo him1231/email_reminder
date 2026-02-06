@@ -27,6 +27,55 @@ export function buildTree(items: Item[]): TreeNode[] {
   return roots;
 }
 
+// Detect cycles in parent pointers. Returns an array of ids that are part of any cycle.
+export function detectCycles(items: Item[]): string[] {
+  const parent = new Map<string, string | null>();
+  items.forEach(i => parent.set(i.id, (i.parentId ?? null)));
+
+  const visited = new Set<string>();
+  const onStack = new Set<string>();
+  const cycles = new Set<string>();
+
+  const dfs = (id: string) => {
+    if (!parent.has(id)) return;
+    if (onStack.has(id)) {
+      // found a back-edge -> mark all nodes currently on the recursion stack as part of a cycle
+      for (const v of Array.from(onStack)) cycles.add(v);
+      return;
+    }
+    if (visited.has(id)) return;
+    visited.add(id);
+    onStack.add(id);
+    const p = parent.get(id);
+    if (p) dfs(p);
+    onStack.delete(id);
+  };
+
+  for (const id of parent.keys()) dfs(id);
+
+  // If a node is part of a cycle we should also include other nodes reachable in that cycle chain.
+  // Walk parents from each cycle-start to collect the full strongly connected set.
+  const result = new Set<string>(cycles);
+  for (const start of Array.from(cycles)) {
+    let cur: string | null = start;
+    while (cur && !result.has(cur)) {
+      result.add(cur);
+      cur = parent.get(cur) ?? null;
+    }
+  }
+
+  return Array.from(result);
+}
+
+// Build a forest while excluding nodes involved in cycles (returns cycle list for diagnostics)
+export function buildForestSafe(items: Item[]): { tree: TreeNode[]; cycles: string[] } {
+  const cycles = detectCycles(items);
+  const cycleSet = new Set(cycles);
+  const filtered = items.filter(i => !cycleSet.has(i.id));
+  const tree = buildTree(filtered as Item[]);
+  return { tree, cycles };
+}
+
 // isDescendant: check whether possible descendantId is under ancestorId using iterative traversal and visited set
 export function isDescendant(items: Item[], ancestorId: string, descendantId: string): boolean {
   if (ancestorId === descendantId) return true;
