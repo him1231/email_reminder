@@ -179,14 +179,19 @@ const TreeNodeDraggable: React.FC<{ node: any; onEdit: any; onDelete: any; defau
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: node.id });
   const { setNodeRef: setDropRef } = useDroppable({ id: node.id });
 
+  // Minimal, reversible hide toggle for the visual drag handle. Set to true to hide the handle.
+  const hideDragHandle = true;
+
   return (
     <TreeItem nodeId={node.id} defaultOpen={defaultExpandAll} label={(
       <Box ref={setDropRef} data-testid={`treeitem-${node.id}`} sx={{ width: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 1, py: 1, px: 1 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{width:'100%'}}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <IconButton size="small" ref={setDragRef as any} {...attributes} {...listeners} aria-label={`drag-${node.id}`}>
-              <DragIndicatorIcon fontSize="small" />
-            </IconButton>
+            {!hideDragHandle && (
+              <IconButton size="small" ref={setDragRef as any} {...attributes} {...listeners} aria-label={`drag-${node.id}`}>
+                <DragIndicatorIcon fontSize="small" />
+              </IconButton>
+            )}
             {/* stable marker for tests (MUI may clone/transform label content) */}
             <span data-testid={`drag-handle-marker-${node.id}`} style={{ display: 'none' }} aria-hidden />
             <Typography>{node.name}</Typography>
