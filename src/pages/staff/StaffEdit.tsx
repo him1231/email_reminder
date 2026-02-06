@@ -93,7 +93,7 @@ export const StaffEdit: React.FC = () => {
               <Grid item xs={12}>
                 <FormControl fullWidth size="small">
                   <InputLabel id="groups-label">Groups</InputLabel>
-                  <Box sx={{ border: '1px solid #eee', borderRadius: 1, p:1, maxHeight: 300, overflow: 'auto' }}>
+                  <Box sx={{ border: '1px solid #eee', borderRadius: 1, p:1, maxHeight: 300, overflow: 'auto', mt: 2 }}>
                     {/* simple checkbox tree - children visible/selectable only when parent checked */}
                     { /* build tree from groups */ }
                     {(() => {

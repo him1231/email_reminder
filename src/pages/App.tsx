@@ -2,6 +2,8 @@ import React, { lazy, Suspense, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { Box, Button, Container, Divider, Stack, Typography, CircularProgress, IconButton, Drawer, List, ListItemButton, ListItemText, useTheme, useMediaQuery } from "@mui/material";
 import MenuIcon from '@mui/icons-material/Menu';
+import LogoutIcon from '@mui/icons-material/Logout';
+import EditIcon from '@mui/icons-material/Edit';
 import { useAuth } from "../hooks/useAuth";
 import { SignInPage } from "./auth/SignInPage";
 
@@ -20,6 +22,8 @@ const DevSetupBanner = lazy(() => import('../components/DevSetupBanner').then(m 
 
 function NavigationItems({ onClick }: { onClick?: () => void }) {
   const location = useLocation();
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down('md'));
   const items = [
     { to: '/staff', label: 'Staff' },
     { to: '/staff-groups', label: 'Staff Groups' },
@@ -29,21 +33,34 @@ function NavigationItems({ onClick }: { onClick?: () => void }) {
     { to: '/queue', label: 'Email Queue' },
   ];
 
+  if (isSmall) {
+    return (
+      <List disablePadding>
+        {items.map(i => (
+          <ListItemButton
+            key={i.to}
+            component={Link}
+            to={i.to}
+            onClick={onClick}
+            selected={location.pathname === i.to || (i.to === '/rules' && location.pathname.startsWith('/rules'))}
+            sx={{ minHeight: 44, px: 2 }}
+          >
+            <ListItemText primary={i.label} />
+          </ListItemButton>
+        ))}
+      </List>
+    );
+  }
+
+  // desktop: horizontal buttons
   return (
-    <List disablePadding>
+    <Stack direction="row" spacing={1} alignItems="center">
       {items.map(i => (
-        <ListItemButton
-          key={i.to}
-          component={Link}
-          to={i.to}
-          onClick={onClick}
-          selected={location.pathname === i.to || (i.to === '/rules' && location.pathname.startsWith('/rules'))}
-          sx={{ minHeight: 44, px: 2 }}
-        >
-          <ListItemText primary={i.label} />
-        </ListItemButton>
+        <Button key={i.to} component={Link} to={i.to} onClick={onClick} variant={location.pathname === i.to || (i.to === '/rules' && location.pathname.startsWith('/rules')) ? 'contained' : 'text'} size="small">
+          {i.label}
+        </Button>
       ))}
-    </List>
+    </Stack>
   );
 }
 
@@ -59,7 +76,7 @@ function Navigation() {
           <IconButton onClick={() => setOpen(true)} aria-label="Open menu" sx={{ width: 48, height: 48 }}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6">Email Reminder — Demo</Typography>
+          <Typography variant="h6">Team Process Wizard (TPW)</Typography>
         </Stack>
         <Drawer open={open} onClose={() => setOpen(false)}>
           <Box sx={{ width: 280, p: 2 }} role="presentation">
@@ -74,7 +91,7 @@ function Navigation() {
 
   return (
     <Stack direction="row" spacing={2} alignItems="center">
-      <Typography variant="h6">Email Reminder — Demo</Typography>
+      <Typography variant="h6">Team Process Wizard (TPW)</Typography>
       <Divider orientation="vertical" flexItem />
       <NavigationItems />
     </Stack>
@@ -93,8 +110,9 @@ export const App: React.FC = () => {
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" mb={3} spacing={{ xs: 2, md: 0 }}>
           <Navigation />
           <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</Typography>
-            <Button onClick={() => signOut()} sx={{ minWidth: 44, height: 44, px: 2 }}>Sign out</Button>
+            <IconButton onClick={() => signOut()} aria-label="Sign out" sx={{ minWidth: 44, height: 44, px: 2 }}>
+              <LogoutIcon />
+            </IconButton>
           </Stack>
         </Stack>
 

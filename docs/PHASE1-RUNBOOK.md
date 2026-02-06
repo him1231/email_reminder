@@ -1,4 +1,4 @@
-# Phase‑1 Runbook — Email Reminder (client-only MVP)
+# Phase‑1 Runbook — Team Process Wizard (client-only MVP)
 
 This runbook describes how to run and validate the Phase‑1 (free) client-only MVP locally and in CI.
 

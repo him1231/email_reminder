@@ -1,4 +1,4 @@
-# Email Reminder — Demo
+# Team Process Wizard (TPW)
 
 This project is a small demo for queuing and sending reminder emails using Firestore and a scheduled backend.
 

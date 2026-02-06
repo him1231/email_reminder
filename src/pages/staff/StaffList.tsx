@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Box, Button, Card, CardContent, Grid, IconButton, Stack, TextField, Typography } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase/init";
 import { StaffForm } from "./StaffForm";
@@ -83,30 +84,9 @@ export const StaffList: React.FC = () => {
                       <Typography variant="caption" color="text.secondary">Contract: {s.contractEffectiveDate?.toDate ? s.contractEffectiveDate.toDate().toISOString().slice(0,10) : s.contractEffectiveDate}</Typography>
                     </Box>
                     <Box>
-                      <Button size="small" onClick={async () => {
-                        try {
-                          // Add an email document to the Firestore queue collection
-                          const payload = {
-                            to: s.email,
-                            subject: 'Test Email from Email Reminder',
-                            body: `Hello ${s.name},\n\nThis is a test email added to the queue from the Email Reminder demo.`,
-                            status: 'pending',
-                            createdAt: new Date(),
-                            scheduledFor: new Date(),
-                            sentAt: null,
-                            error: null,
-                          } as any;
-                          // use addDoc to write to 'email_queue'
-                          const { addDoc, collection } = await import('firebase/firestore');
-                          await addDoc(collection(db, 'email_queue'), payload);
-                          alert('Email added to queue.');
-                        } catch (err) {
-                          console.error('add to queue failed', err);
-                          alert('Unable to add email to queue: ' + (err as Error).message);
-                        }
-                      }}>Add to queue</Button>
-
-                      <Button size="small" onClick={() => window.location.hash = `#/staff/${s.id}/edit`}>Edit</Button>
+                      <IconButton size="small" aria-label="edit" onClick={() => window.location.hash = `#/staff/${s.id}/edit`}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
 
                       {auth.currentUser?.uid === s.createdBy && (
                         <IconButton aria-label="delete-staff" size="small" onClick={async () => {
