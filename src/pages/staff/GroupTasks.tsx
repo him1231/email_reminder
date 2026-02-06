@@ -82,10 +82,15 @@ export const GroupTasks: React.FC = () => {
         payload.dueType = 'fixed';
         payload.dueDate = values.dueDate ? new Date(values.dueDate) : null;
         payload.relative = null;
-      } else {
+      } else if (values.dueType === 'relative' && values.relativeField) {
         payload.dueType = 'relative';
         payload.dueDate = null;
-        payload.relative = { field: values.relativeField, value: Number(values.relativeValue), unit: values.relativeUnit };
+        payload.relative = { field: values.relativeField, value: Number(values.relativeValue) || 0, unit: values.relativeUnit };
+      } else {
+        // guard: default to fixed if relative not properly provided
+        payload.dueType = 'fixed';
+        payload.dueDate = null;
+        payload.relative = null;
       }
 
       if (!payload.groupId) throw new Error('Group is required');
@@ -178,7 +183,16 @@ export const GroupTasks: React.FC = () => {
         <DialogTitle>{editing ? 'Edit Task' : 'Create Task'}</DialogTitle>
         <Formik
           enableReinitialize
-          initialValues={{ title: editing?.title || '', description: editing?.description || '', groupId: editing?.groupId || (groups[0]?.id || ''), dueDate: editing?.dueDate ? (editing.dueDate as any).toDate ? (editing.dueDate as any).toDate().toISOString().slice(0,10) : editing.dueDate : '' }}
+          initialValues={{
+            title: editing?.title || '',
+            description: editing?.description || '',
+            groupId: editing?.groupId || (groups[0]?.id || ''),
+            dueDate: editing?.dueDate ? (editing.dueDate as any).toDate ? (editing.dueDate as any).toDate().toISOString().slice(0,10) : editing.dueDate : '',
+            dueType: editing?.dueType || 'fixed',
+            relativeField: editing?.relative?.field || '',
+            relativeValue: editing?.relative?.value ?? 0,
+            relativeUnit: editing?.relative?.unit || 'days'
+          }}
           validationSchema={Yup.object({ title: Yup.string().required('Required'), groupId: Yup.string().required('Group is required') })}
           onSubmit={(vals, helpers) => saveTask(vals, helpers)}
         >
@@ -191,7 +205,30 @@ export const GroupTasks: React.FC = () => {
                   <TextField select label="Group" name="groupId" value={values.groupId} onChange={handleChange} fullWidth>
                     {groups.map(g => <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>)}
                   </TextField>
-                  <TextField name="dueDate" label="Due date" type="date" value={values.dueDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
+
+                  <TextField select label="Due type" name="dueType" value={values.dueType} onChange={handleChange} fullWidth>
+                    <MenuItem value="fixed">Fixed date</MenuItem>
+                    <MenuItem value="relative">Relative to staff field</MenuItem>
+                  </TextField>
+
+                  {values.dueType === 'fixed' ? (
+                    <TextField name="dueDate" label="Due date" type="date" value={values.dueDate} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
+                  ) : (
+                    <Stack direction="row" spacing={2}>
+                      <TextField select label="Base field" name="relativeField" value={values.relativeField} onChange={handleChange} fullWidth>
+                        <MenuItem value="">-- select field --</MenuItem>
+                        {RELATIVE_BASE_FIELDS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+                      </TextField>
+                      <TextField name="relativeValue" label="Offset" type="number" value={values.relativeValue} onChange={handleChange} />
+                      <TextField select label="Unit" name="relativeUnit" value={values.relativeUnit} onChange={handleChange}>
+                        <MenuItem value="days">days</MenuItem>
+                        <MenuItem value="weeks">weeks</MenuItem>
+                        <MenuItem value="months">months</MenuItem>
+                        <MenuItem value="years">years</MenuItem>
+                      </TextField>
+                    </Stack>
+                  )}
+
                 </Stack>
               </DialogContent>
               <DialogActions>
