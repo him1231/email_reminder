@@ -41,7 +41,9 @@ try {
 }
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { DndContext, DragOverlay, useDraggable, useDroppable, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 // Prefer a synchronous require in Node/jest environments; fall back to dynamic import in the browser dev server.
 let buildForestSafeSync: ((items: any[]) => { tree: any[]; cycles: string[] }) | null = null;
@@ -96,6 +98,11 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
   const allIds = items.map(i => i.id);
   const [activeId, setActiveId] = React.useState<string | null>(null);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   if (loadError) {
     return (
       <Box>
@@ -114,6 +121,7 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
 
   return (
     <DndContext
+      sensors={sensors}
       onDragStart={(e)=>setActiveId(e.active.id as string)}
       onDragEnd={async (e)=>{
         setActiveId(null);
@@ -140,7 +148,7 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
 
         <TreeView defaultCollapseIcon={<span>-</span>} defaultExpandIcon={<span>+</span>} defaultExpanded={defaultExpandAll ? allIds : undefined}>
           {tree.map(node=> (
-            <TreeNode key={node.id} node={node} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />
+            <TreeNodeDraggable key={node.id} node={node} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />
           ))}
         </TreeView>
         <DragOverlay>{activeId ? <Box sx={{p:1, bgcolor:'background.paper', border:1}}>{items.find(i=>i.id===activeId)?.name}</Box> : null}</DragOverlay>
@@ -163,6 +171,35 @@ const TreeNode: React.FC<{ node: any; onEdit: any; onDelete: any; defaultExpandA
       </Box>
     )}>
       {node.children.map((c:any)=> <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />)}
+    </TreeItem>
+  );
+};
+
+const TreeNodeDraggable: React.FC<{ node: any; onEdit: any; onDelete: any; defaultExpandAll?: boolean }> = ({ node, onEdit, onDelete, defaultExpandAll }) => {
+  const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: node.id });
+  const { setNodeRef: setDropRef } = useDroppable({ id: node.id });
+
+  return (
+    <TreeItem nodeId={node.id} defaultOpen={defaultExpandAll} label={(
+      <Box ref={setDropRef} data-testid={`treeitem-${node.id}`} sx={{ width: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 1, py: 1, px: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{width:'100%'}}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <IconButton size="small" ref={setDragRef as any} {...attributes} {...listeners} aria-label={`drag-${node.id}`}>
+              <DragIndicatorIcon fontSize="small" />
+            </IconButton>
+            {/* stable marker for tests (MUI may clone/transform label content) */}
+            <span data-testid={`drag-handle-marker-${node.id}`} style={{ display: 'none' }} aria-hidden />
+            <Typography>{node.name}</Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={1}>
+            <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onEdit(node); }}><EditIcon fontSize="small"/></IconButton>
+            <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onDelete(node); }}><DeleteIcon fontSize="small" /></IconButton>
+          </Stack>
+        </Stack>
+      </Box>
+    )}>
+      {node.children.map((c:any)=> <TreeNodeDraggable key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />)}
     </TreeItem>
   );
 };

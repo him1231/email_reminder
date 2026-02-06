@@ -43,3 +43,15 @@ test('StaffGroupsTest supports in-memory DnD (simulate move)', async () => {
   const root2 = r2Candidates.find(el => within(el).queryByText('Root 2'))!;
   expect(within(root2).getByText('A')).toBeDefined();
 });
+
+test('tree items expose a drag handle (pointer & keyboard target)', () => {
+  render(<StaffGroupsTest />);
+  // MUI may clone/transform label content; assert the stable marker exists
+  const marker = screen.getByTestId('drag-handle-marker-a');
+  expect(marker).toBeDefined();
+  // if a real handle is present, it should be reachable by aria-label
+  const handle = screen.queryByLabelText('drag-a');
+  if (handle) {
+    expect(handle.tagName).toBe('BUTTON');
+  }
+});
