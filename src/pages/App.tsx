@@ -12,12 +12,15 @@ const StaffList = lazy(() => import('./staff/StaffList').then(m => ({ default: m
 const StaffEdit = lazy(() => import('./staff/StaffEdit').then(m => ({ default: m.StaffEdit })));
 const StaffGroups = lazy(() => import('./staff/StaffGroups').then(m => ({ default: m.StaffGroups })));
 const TemplateEditor = lazy(() => import('./templates/TemplateEditor').then(m => ({ default: m.TemplateEditor })));
+const DevSetupBanner = lazy(() => import('../components/DevSetupBanner').then(m => ({ default: m.DevSetupBanner })));
 
 const EmailQueue = lazy(() => import('./email/EmailQueue').then(m => ({ default: m.EmailQueue })));
 const ComposeEmail = lazy(() => import('./email/ComposeEmail').then(m => ({ default: m.ComposeEmail })));
 const RulesList = lazy(() => import('./rules/RulesList').then(m => ({ default: m.RulesList })));
 const RuleEditor = lazy(() => import('./rules/RuleEditor').then(m => ({ default: m.RuleEditor })));
 
+function NavigationItems({ onClick }: { onClick?: () => void }) {
+  const location = useLocation();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('md'));
   const items = [
