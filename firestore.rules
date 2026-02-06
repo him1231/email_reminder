@@ -44,6 +44,33 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
+    // --- Group tasks: tasks assigned to a staff group (client CRUD with safeguards)
+    match /group_tasks/{tid} {
+      // allow authenticated reads; allow emulator open for dev
+      allow read: if isSignedIn() || isEmulatorOpen();
+
+      // create: must be an authenticated user, reference an existing group, and set audit fields
+      allow create: if isSignedIn()
+        && request.resource.data.title is string
+        && (request.resource.data.description is string || request.resource.data.description == null)
+        && request.resource.data.groupId is string
+        && exists(/databases/$(database)/documents/staff_groups/$(request.resource.data.groupId))
+        && (request.resource.data.dueDate is timestamp || request.resource.data.dueDate == null)
+        && request.resource.data.completed is bool
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdBy == request.auth.uid;
+
+      // update: only creator or admin; prevent changing createdBy/createdAt; require updatedAt timestamp
+      allow update: if isSignedIn()
+        && (isAdmin() || resource.data.createdBy == request.auth.uid)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      // delete: only creator or admin
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+    }
+
     // --- Templates: authenticated create; owner/admin update/delete ---
     match /templates/{tplId} {
       allow read: if isSignedIn() || isEmulatorOpen();

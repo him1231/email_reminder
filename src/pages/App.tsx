@@ -11,8 +11,10 @@ import { SignInPage } from "./auth/SignInPage";
 const StaffList = lazy(() => import('./staff/StaffList').then(m => ({ default: m.StaffList })));
 const StaffEdit = lazy(() => import('./staff/StaffEdit').then(m => ({ default: m.StaffEdit })));
 const StaffGroups = lazy(() => import('./staff/StaffGroups').then(m => ({ default: m.StaffGroups })));
+const GroupTasks = lazy(() => import('./staff/GroupTasks').then(m => ({ default: m.GroupTasks })));
 const TemplateEditor = lazy(() => import('./templates/TemplateEditor').then(m => ({ default: m.TemplateEditor })));
 const DevSetupBanner = lazy(() => import('../components/DevSetupBanner').then(m => ({ default: m.DevSetupBanner })));
+
 
 const EmailQueue = lazy(() => import('./email/EmailQueue').then(m => ({ default: m.EmailQueue })));
 const ComposeEmail = lazy(() => import('./email/ComposeEmail').then(m => ({ default: m.ComposeEmail })));
@@ -26,11 +28,13 @@ function NavigationItems({ onClick }: { onClick?: () => void }) {
   const items = [
     { to: '/staff', label: 'Staff' },
     { to: '/staff-groups', label: 'Staff Groups' },
+    { to: '/group-tasks', label: 'Group Tasks' },
     { to: '/templates', label: 'Templates' },
     { to: '/compose', label: 'Compose' },
     { to: '/rules', label: 'Rules' },
     { to: '/queue', label: 'Email Queue' },
   ];
+
 
   if (isSmall) {
     return (
@@ -135,6 +139,7 @@ export const App: React.FC = () => {
               <Route path="/staff" element={<StaffList />} />
               <Route path="/staff/:id/edit" element={<StaffEdit />} />
               <Route path="/staff-groups" element={<StaffGroups />} />
+              <Route path="/group-tasks" element={<GroupTasks />} />
               <Route path="/templates" element={<TemplateEditor />} />
               <Route path="/queue" element={<EmailQueue />} />
               <Route path="/compose" element={<ComposeEmail />} />
