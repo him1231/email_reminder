@@ -65,6 +65,21 @@ describe("group_tasks CRUD (emulator)", () => {
     }));
   });
 
+  it("allows creating a relative (dynamic) due spec", async () => {
+    const admin = testEnv.authenticatedContext("admin", { admin: true }).firestore();
+    const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" }).firestore();
+    const gRef = await admin.collection("staff_groups").add({ name: "HR", createdAt: new Date(), createdBy: "admin", order: 0 });
+
+    await assertSucceeds(alice.collection("group_tasks").add({
+      title: "Relative task",
+      groupId: gRef.id,
+      dueType: 'relative',
+      relative: { field: 'contractEffectiveDate', value: 3, unit: 'months' },
+      createdAt: new Date(),
+      createdBy: 'alice'
+    }));
+  });
+
   it("allows creator to delete their task and denies other users", async () => {
     const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" }).firestore();
     const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" }).firestore();

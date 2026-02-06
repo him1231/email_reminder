@@ -8,3 +8,17 @@ export function addRelativeTime(baseDate: Date, value: number, unit: 'days'|'wee
     default: return date;
   }
 }
+
+export function resolveTaskDueDate(task: any, staffRecord: any): Date | null {
+  if (!task) return null;
+  if (task.dueType === 'fixed') {
+    return task.dueDate ? (task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate)) : null;
+  }
+  if (task.dueType === 'relative' && task.relative && task.relative.field) {
+    const base = staffRecord?.[task.relative.field];
+    const baseDate = base && base.toDate ? base.toDate() : (base ? new Date(base) : null);
+    if (!baseDate) return null;
+    return addRelativeTime(baseDate, Number(task.relative.value || 0), task.relative.unit || 'months');
+  }
+  return null;
+}

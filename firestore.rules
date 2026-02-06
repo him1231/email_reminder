@@ -57,7 +57,17 @@ service cloud.firestore {
         && (request.resource.data.description is string || request.resource.data.description == null)
         && request.resource.data.groupId is string
         && exists(/databases/$(database)/documents/staff_groups/$(request.resource.data.groupId))
-        && (request.resource.data.dueDate is timestamp || request.resource.data.dueDate == null)
+        && (
+          (request.resource.data.dueType == 'fixed' && (request.resource.data.dueDate is timestamp || request.resource.data.dueDate == null))
+          ||
+          (
+            request.resource.data.dueType == 'relative' &&
+            request.resource.data.relative is map &&
+            request.resource.data.relative.field is string &&
+            request.resource.data.relative.value is number &&
+            (request.resource.data.relative.unit in ['days','weeks','months','years'])
+          )
+        )
         && (request.resource.data.completed is bool || request.resource.data.completed == null)
         // accept either serverTimestamp() (== request.time) or a client-provided timestamp
         && (request.resource.data.createdAt == request.time || request.resource.data.createdAt is timestamp)

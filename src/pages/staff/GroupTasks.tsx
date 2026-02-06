@@ -15,11 +15,15 @@ type GroupTask = {
   title: string;
   description?: string;
   groupId: string;
-  dueDate?: any;
+  dueType?: 'fixed' | 'relative';
+  dueDate?: any; // timestamp|null for fixed
+  // when dueType === 'relative' store a compact specification to evaluate per-staff
+  relative?: { field: string; value: number; unit: 'days'|'weeks'|'months'|'years' } | null;
   completed?: boolean;
   createdAt?: any;
   createdBy?: string;
 };
+
 
 export const GroupTasks: React.FC = () => {
   const [tasks, setTasks] = useState<GroupTask[]>([]);
@@ -33,6 +37,10 @@ export const GroupTasks: React.FC = () => {
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity?: 'success' | 'error' }>(
     { open: false, message: '', severity: 'success' }
   );
+
+  // fields available on a staff record that can be used as a base time for relative due dates
+  const RELATIVE_BASE_FIELDS = [ 'contractEffectiveDate', 'contractEndDate' ];
+
 
   useEffect(() => {
     const qg = query(collection(db, 'staff_groups'), orderBy('order', 'asc'));
@@ -64,10 +72,21 @@ export const GroupTasks: React.FC = () => {
       // - ensure `completed` is boolean
       // - require a non-empty groupId (client should validate, but guard here too)
       const payload: any = {
-        ...values,
-        dueDate: values.dueDate ? new Date(values.dueDate) : null,
+        title: values.title,
+        description: values.description || null,
+        groupId: values.groupId,
         completed: typeof values.completed === 'boolean' ? values.completed : false,
       };
+
+      if (values.dueType === 'fixed') {
+        payload.dueType = 'fixed';
+        payload.dueDate = values.dueDate ? new Date(values.dueDate) : null;
+        payload.relative = null;
+      } else {
+        payload.dueType = 'relative';
+        payload.dueDate = null;
+        payload.relative = { field: values.relativeField, value: Number(values.relativeValue), unit: values.relativeUnit };
+      }
 
       if (!payload.groupId) throw new Error('Group is required');
 
@@ -138,7 +157,9 @@ export const GroupTasks: React.FC = () => {
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Typography variant="subtitle1">{t.title}</Typography>
-                      <Typography variant="caption" color="text.secondary"><GroupName id={t.groupId} /> • {t.dueDate ? String(t.dueDate).slice(0,10) : 'No due date'}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        <GroupName id={t.groupId} /> • {t.dueType === 'relative' ? `${t.relative?.value || ''} ${t.relative?.unit || ''} after ${t.relative?.field || ''}` : (t.dueDate ? String(t.dueDate).slice(0,10) : 'No due date')}
+                      </Typography>
                       {t.description ? <Typography variant="body2" color="text.secondary">{t.description}</Typography> : null}
                     </Box>
                     <Stack direction="row" spacing={1}>
