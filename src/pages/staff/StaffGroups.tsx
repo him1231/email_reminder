@@ -45,6 +45,9 @@ import { db, auth } from '../../lib/firebase/init';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 
+// components
+import StaffGroupsTree from '../../components/StaffGroupsTree';
+
 // TODO: Temporary change — render a flat/raw list of staff groups instead of the recursive tree
 // This avoids recursion/loops in production data. Revert this change once the cycle issue is fixed and tree rendering is safe.
 
@@ -257,7 +260,7 @@ export const StaffGroups: React.FC = () => {
         <Card>
           <CardContent>
             {/* Flat/raw list rendering to avoid recursive tree rendering (temporary) */}
-            <StaffGroupsTree items={items.map(i=>({ id:i.id, name:i.name, parentId:i.parentId, order:i.order }))} onEdit={openEdit} onDelete={openDelete} onMove={handleMove} />
+            {renderFlatList()}
           </CardContent>
         </Card>
       )}
