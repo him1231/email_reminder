@@ -10,12 +10,12 @@ test('StaffGroupsTest shows tree and detects cycle dataset', () => {
   expect(screen.getByText('A')).toBeDefined();
   expect(screen.getByText('B')).toBeDefined();
 
-  // collapse all using the control
-  fireEvent.click(screen.getByText(/Collapse all/i));
+  // collapse all using the control (icon button)
+  fireEvent.click(screen.getByLabelText(/Collapse all groups/i));
   expect(screen.queryByText('A')).toBeNull();
 
   // expand all using the control
-  fireEvent.click(screen.getByText(/Expand all/i));
+  fireEvent.click(screen.getByLabelText(/Expand all groups/i));
   expect(screen.getByText('A')).toBeDefined();
 
   // switch to cyclic dataset

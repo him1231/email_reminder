@@ -22,6 +22,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 // firebase
 import {
@@ -122,6 +124,10 @@ export const StaffGroups: React.FC = () => {
   const handleCloseForm = () => setFormOpen(false);
   const handleCloseConfirm = () => { setConfirmOpen(false); setDeleting(null); };
 
+  // visual/testing helpers: control tree expansion (remount to honor uncontrolled defaultExpanded)
+  const [expanded, setExpanded] = useState(true);
+  const treeKey = `${expanded ? 'expanded' : 'collapsed'}-${items.length}`;
+
   const saveGroup = async (values: { name: string; description?: string; parentId?: string | null }, helpers: any) => {
     helpers.setSubmitting(true);
     try {
@@ -216,10 +222,13 @@ export const StaffGroups: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Staff Groups</Typography>
-        <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1}>
+            <Typography variant="h4">Staff Groups</Typography>
+            <Tooltip title="Expand all groups"><IconButton aria-label="Expand all groups" color={expanded ? 'primary' : 'default'} onClick={() => setExpanded(true)} size="small"><ExpandMoreIcon /></IconButton></Tooltip>
+            <Tooltip title="Collapse all groups"><IconButton aria-label="Collapse all groups" color={!expanded ? 'primary' : 'default'} onClick={() => setExpanded(false)} size="small"><ExpandLessIcon /></IconButton></Tooltip>
+          </Stack>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Group</Button>
-        </Stack>      </Stack>
+        </Stack>
 
       {loading ? (
         <Card>
@@ -240,8 +249,8 @@ export const StaffGroups: React.FC = () => {
       ) : (
         <Card>
           <CardContent>
-            {/* Flat/raw list rendering to avoid recursive tree rendering (temporary) */}
-            {renderFlatList()}
+            {/* Tree view (safe) — use the shared StaffGroupsTree. Keep flat list helper available as fallback. */}
+            <StaffGroupsTree key={treeKey} defaultExpandAll={expanded} items={items} onEdit={openEdit} onDelete={openDelete} onMove={handleMove} />
           </CardContent>
         </Card>
       )}

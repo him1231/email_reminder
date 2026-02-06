@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Button, Card, CardContent, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Stack, Typography, Tooltip, IconButton } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import StaffGroupsTree from '../../components/StaffGroupsTree';
 
 // Small test page to exercise the StaffGroupsTree UI with sample datasets.
@@ -31,8 +33,8 @@ export const StaffGroupsTest: React.FC = () => {
         <Button variant={useCyclic ? 'contained' : 'outlined'} color="warning" onClick={() => setUseCyclic(true)}>Cyclic dataset</Button>
 
         <Box sx={{ width: 16 }} />
-        <Button variant={expanded ? 'contained' : 'outlined'} onClick={() => setExpanded(true)}>Expand all</Button>
-        <Button variant={!expanded ? 'contained' : 'outlined'} onClick={() => setExpanded(false)}>Collapse all</Button>
+        <Tooltip title="Expand all groups"><IconButton aria-label="Expand all groups" color={expanded ? 'primary' : 'default'} onClick={() => setExpanded(true)} size="small"><ExpandMoreIcon /></IconButton></Tooltip>
+        <Tooltip title="Collapse all groups"><IconButton aria-label="Collapse all groups" color={!expanded ? 'primary' : 'default'} onClick={() => setExpanded(false)} size="small"><ExpandLessIcon /></IconButton></Tooltip>
       </Stack>
 
       <Card>
