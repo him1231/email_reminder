@@ -1,6 +1,7 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { Box, Button, Container, Divider, Stack, Typography, CircularProgress } from "@mui/material";
+import { Box, Button, Container, Divider, Stack, Typography, CircularProgress, IconButton, Drawer, List, ListItemButton, ListItemText, useTheme, useMediaQuery } from "@mui/material";
+import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from "../hooks/useAuth";
 import { SignInPage } from "./auth/SignInPage";
 
@@ -17,18 +18,65 @@ const RuleEditor = lazy(() => import('./rules/RuleEditor').then(m => ({ default:
 // Lazy-load the dev banner so the main app and tests don't eagerly execute browser-only code.
 const DevSetupBanner = lazy(() => import('../components/DevSetupBanner').then(m => ({ default: m.DevSetupBanner })));
 
-function Navigation() {
+function NavigationItems({ onClick }: { onClick?: () => void }) {
   const location = useLocation();
+  const items = [
+    { to: '/staff', label: 'Staff' },
+    { to: '/staff-groups', label: 'Staff Groups' },
+    { to: '/templates', label: 'Templates' },
+    { to: '/compose', label: 'Compose' },
+    { to: '/rules', label: 'Rules' },
+    { to: '/queue', label: 'Email Queue' },
+  ];
+
+  return (
+    <List disablePadding>
+      {items.map(i => (
+        <ListItemButton
+          key={i.to}
+          component={Link}
+          to={i.to}
+          onClick={onClick}
+          selected={location.pathname === i.to || (i.to === '/rules' && location.pathname.startsWith('/rules'))}
+          sx={{ minHeight: 44, px: 2 }}
+        >
+          <ListItemText primary={i.label} />
+        </ListItemButton>
+      ))}
+    </List>
+  );
+}
+
+function Navigation() {
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down('md'));
+  const [open, setOpen] = useState(false);
+
+  if (isSmall) {
+    return (
+      <>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <IconButton onClick={() => setOpen(true)} aria-label="Open menu" sx={{ width: 48, height: 48 }}>
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6">Email Reminder — Demo</Typography>
+        </Stack>
+        <Drawer open={open} onClose={() => setOpen(false)}>
+          <Box sx={{ width: 280, p: 2 }} role="presentation">
+            <Typography variant="h6" sx={{ mb: 1 }}>Menu</Typography>
+            <Divider />
+            <NavigationItems onClick={() => setOpen(false)} />
+          </Box>
+        </Drawer>
+      </>
+    );
+  }
+
   return (
     <Stack direction="row" spacing={2} alignItems="center">
       <Typography variant="h6">Email Reminder — Demo</Typography>
       <Divider orientation="vertical" flexItem />
-      <Button component={Link} to="/staff" variant={location.pathname === '/staff' ? 'contained' : 'text'}>Staff</Button>
-      <Button component={Link} to="/staff-groups" variant={location.pathname === '/staff-groups' ? 'contained' : 'text'}>Staff Groups</Button>
-      <Button component={Link} to="/templates" variant={location.pathname === '/templates' ? 'contained' : 'text'}>Templates</Button>
-      <Button component={Link} to="/compose" variant={location.pathname === '/compose' ? 'contained' : 'text'}>Compose</Button>
-      <Button component={Link} to="/rules" variant={location.pathname.startsWith('/rules') ? 'contained' : 'text'}>Rules</Button>
-      <Button component={Link} to="/queue" variant={location.pathname === '/queue' ? 'contained' : 'text'}>Email Queue</Button>
+      <NavigationItems />
     </Stack>
   );
 }
@@ -42,11 +90,11 @@ export const App: React.FC = () => {
   return (
     <HashRouter>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" mb={3} spacing={{ xs: 2, md: 0 }}>
           <Navigation />
           <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="body2">{user.email}</Typography>
-            <Button onClick={() => signOut()}>Sign out</Button>
+            <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</Typography>
+            <Button onClick={() => signOut()} sx={{ minWidth: 44, height: 44, px: 2 }}>Sign out</Button>
           </Stack>
         </Stack>
 
