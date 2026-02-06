@@ -50,14 +50,17 @@ service cloud.firestore {
       allow read: if isSignedIn() || isEmulatorOpen();
 
       // create: must be an authenticated user, reference an existing group, and set audit fields
+      // Be tolerant of client-supplied timestamps (tests and some clients send a Date) and
+      // allow `completed` to be omitted (server will default to false in client code).
       allow create: if isSignedIn()
         && request.resource.data.title is string
         && (request.resource.data.description is string || request.resource.data.description == null)
         && request.resource.data.groupId is string
         && exists(/databases/$(database)/documents/staff_groups/$(request.resource.data.groupId))
         && (request.resource.data.dueDate is timestamp || request.resource.data.dueDate == null)
-        && request.resource.data.completed is bool
-        && request.resource.data.createdAt == request.time
+        && (request.resource.data.completed is bool || request.resource.data.completed == null)
+        // accept either serverTimestamp() (== request.time) or a client-provided timestamp
+        && (request.resource.data.createdAt == request.time || request.resource.data.createdAt is timestamp)
         && request.resource.data.createdBy == request.auth.uid;
 
       // update: only creator or admin; prevent changing createdBy/createdAt; require updatedAt timestamp

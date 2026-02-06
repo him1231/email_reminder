@@ -49,6 +49,22 @@ describe("group_tasks CRUD (emulator)", () => {
     }));
   });
 
+  it("accepts client-sent createdAt and omitted completed (common client payload)", async () => {
+    const admin = testEnv.authenticatedContext("admin", { admin: true }).firestore();
+    const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" }).firestore();
+    const gRef = await admin.collection("staff_groups").add({ name: "HR", createdAt: new Date(), createdBy: "admin", order: 0 });
+
+    // client provides a JS Date and omits `completed`. This previously triggered
+    // `Missing or insufficient permissions` in production when rules were stricter.
+    await assertSucceeds(alice.collection("group_tasks").add({
+      title: "Client timestamp task",
+      groupId: gRef.id,
+      // completed omitted on purpose
+      createdAt: new Date(),
+      createdBy: "alice",
+    }));
+  });
+
   it("allows creator to delete their task and denies other users", async () => {
     const alice = testEnv.authenticatedContext("alice", { email: "alice@example.com" }).firestore();
     const bob = testEnv.authenticatedContext("bob", { email: "bob@example.com" }).firestore();
