@@ -1,4 +1,4 @@
-# Team Process Wizard (TPW)
+# Team Process Wizard
 
 This project is a small demo for queuing and sending reminder emails using Firestore and a scheduled backend.
 

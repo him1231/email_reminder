@@ -79,7 +79,7 @@ function Navigation() {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" noWrap sx={{ ml: 1, minWidth: 0 }}>
-              Team Process Wizard (TPW)
+              Team Process Wizard
             </Typography>
           </Box>
         </Box>
@@ -96,7 +96,7 @@ function Navigation() {
 
   return (
     <Stack direction="row" spacing={2} alignItems="center">
-      <Typography variant="h6">Team Process Wizard (TPW)</Typography>
+      <Typography variant="h6">Team Process Wizard</Typography>
       <Divider orientation="vertical" flexItem />
       <NavigationItems />
     </Stack>
