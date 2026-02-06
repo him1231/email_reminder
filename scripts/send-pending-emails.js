@@ -64,7 +64,7 @@ async function main() {
       }
       try {
         // Allow overriding the sender display via SENDER_EMAIL env var, fallback to smtp user
-        const sender = process.env.SENDER_EMAIL || smtpUser || 'no-reply@tpw.com';
+        const sender = process.env.SENDER_EMAIL || smtpUser || 'Team Process Wizard <no-reply@tpw.com>';
         const mailOptions = { from: sender, to: data.to, subject: data.subject, text: data.body };
         if (data.bcc) mailOptions.bcc = data.bcc;
         await transporter.sendMail(mailOptions);
