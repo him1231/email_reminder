@@ -23,7 +23,7 @@ try {
     const toggleLabel = nodeId ? `toggle-${nodeId}` : (typeof label === 'string' ? `toggle-${label}` : 'toggle');
     return (
       <div data-testid={nodeId ? `treeitem-${nodeId}` : undefined} style={{ paddingLeft: 8, marginBottom: 6, width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: '1px solid', borderColor: '#e0e0e0', borderRadius: 6, padding: '8px 12px', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', boxSizing: 'border-box' }}>
           {hasChildren ? (
             <button aria-expanded={open} onClick={() => setOpen(s => !s)} aria-label={toggleLabel} style={{ background: 'none', border: 0, padding: 4, cursor: 'pointer' }}>
               <span style={{ display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none' }}>▸</span>
@@ -57,8 +57,9 @@ type Group = { id: string; name: string; parentId?: string | null; order?: numbe
 
 type Props = {
   items: Group[];
-  onEdit: (g: Group)=>void;
-  onDelete: (g: Group)=>void;
+  // accept a loose object so callers with richer types (StaffGroup) are supported
+  onEdit: (g: any)=>void;
+  onDelete: (g: any)=>void;
   onMove: (id: string, newParentId: string|null, newIndex: number)=>Promise<void>;
   /** when true, expand all nodes initially */
   defaultExpandAll?: boolean;

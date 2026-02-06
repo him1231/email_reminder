@@ -22,8 +22,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 
 // firebase
 import {
@@ -224,8 +224,8 @@ export const StaffGroups: React.FC = () => {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
           <Stack direction="row" spacing={1}>
             <Typography variant="h4">Staff Groups</Typography>
-            <Tooltip title="Expand all groups"><IconButton aria-label="Expand all groups" color={expanded ? 'primary' : 'default'} onClick={() => setExpanded(true)} size="small"><ExpandMoreIcon /></IconButton></Tooltip>
-            <Tooltip title="Collapse all groups"><IconButton aria-label="Collapse all groups" color={!expanded ? 'primary' : 'default'} onClick={() => setExpanded(false)} size="small"><ExpandLessIcon /></IconButton></Tooltip>
+            <Tooltip title="Expand all groups"><IconButton aria-label="Expand all groups" onClick={() => setExpanded(true)} size="small"><UnfoldMoreIcon /></IconButton></Tooltip>
+            <Tooltip title="Collapse all groups"><IconButton aria-label="Collapse all groups" onClick={() => setExpanded(false)} size="small"><UnfoldLessIcon /></IconButton></Tooltip>
           </Stack>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Group</Button>
         </Stack>
