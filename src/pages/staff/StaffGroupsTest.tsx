@@ -28,6 +28,8 @@ export const StaffGroupsTest: React.FC = () => {
 
   React.useEffect(() => setGroups(useCyclic ? cyclic : clean), [useCyclic]);
 
+  const [appendedCounts, setAppendedCounts] = React.useState<Record<string, number>>({});
+
   const onMove = async (id: string, newParentId: string | null, newIndex: number) => {
     // in-memory reorder: remove, set parentId, insert into siblings at newIndex, recompute orders
     const without = groups.filter(g => g.id !== id).map(g => ({ ...g }));
@@ -54,8 +56,24 @@ export const StaffGroupsTest: React.FC = () => {
     setGroups(final);
   };
 
+  const appendDndButton = (id: string) => {
+    setAppendedCounts(s => ({ ...s, [id]: (s[id] || 0) + 1 }));
+  };
+
   // small helper for manual/CI-friendly acceptance test: programmatically move 'A' under 'Root 2'
   const simulateMove = async () => onMove('a', 'r2', 0);
+
+  const renderExtraActions = (node: any) => {
+    const count = appendedCounts[node.id] || 0;
+    return (
+      <>
+        {Array.from({ length: count }).map((_, i) => (
+          <Button key={`dnd-${i}`} size="small" data-testid={`treeitem-${node.id}-dnd-${i}`}>DnD</Button>
+        ))}
+        <Button size="small" data-testid={`append-dnd-${node.id}`} onClick={(e)=>{ e.stopPropagation(); appendDndButton(node.id); }}>Append DnD</Button>
+      </>
+    );
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -77,7 +95,7 @@ export const StaffGroupsTest: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             This page is a lightweight playground for the staff-groups tree component. It does not mutate Firestore.
           </Typography>
-          <StaffGroupsTree key={treeKey} defaultExpandAll={expanded} items={groups as any} onEdit={() => {}} onDelete={() => {}} onMove={onMove} />
+          <StaffGroupsTree key={treeKey} defaultExpandAll={expanded} items={groups as any} onEdit={() => {}} onDelete={() => {}} onMove={onMove} extraActions={renderExtraActions} />
         </CardContent>
       </Card>
     </Box>

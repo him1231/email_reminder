@@ -63,9 +63,11 @@ type Props = {
   onMove: (id: string, newParentId: string|null, newIndex: number)=>Promise<void>;
   /** when true, expand all nodes initially */
   defaultExpandAll?: boolean;
+  /** optional renderer for additional action controls shown beside Edit/Delete */
+  extraActions?: (node: any) => React.ReactNode;
 };
 
-export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMove, defaultExpandAll = false }) => {
+export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMove, defaultExpandAll = false, extraActions }) => {
   // If sync loader is available (jest/node), use it for immediate rendering (keeps tests simple).
   // Otherwise perform dynamic import at runtime and render a friendly error/placeholder on failure.
   const [asyncState, setAsyncState] = React.useState<{ tree: any[]; cycles: string[]; loadError?: string | null } | null>(
@@ -140,7 +142,7 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
 
         <TreeView defaultCollapseIcon={<span>-</span>} defaultExpandIcon={<span>+</span>} defaultExpanded={defaultExpandAll ? allIds : undefined}>
           {tree.map(node=> (
-            <TreeNode key={node.id} node={node} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />
+            <TreeNode key={node.id} node={node} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} extraActions={extraActions} />
           ))}
         </TreeView>
         <DragOverlay>{activeId ? <Box sx={{p:1, bgcolor:'background.paper', border:1}}>{items.find(i=>i.id===activeId)?.name}</Box> : null}</DragOverlay>
@@ -149,7 +151,7 @@ export const StaffGroupsTree: React.FC<Props> = ({ items, onEdit, onDelete, onMo
   );
 };
 
-const TreeNode: React.FC<{ node: any; onEdit: any; onDelete: any; defaultExpandAll?: boolean }> = ({ node, onEdit, onDelete, defaultExpandAll }) => {
+const TreeNode: React.FC<{ node: any; onEdit: any; onDelete: any; defaultExpandAll?: boolean; extraActions?: (n:any)=>React.ReactNode }> = ({ node, onEdit, onDelete, defaultExpandAll, extraActions }) => {
   return (
     <TreeItem nodeId={node.id} defaultOpen={defaultExpandAll} label={(
       <Box data-testid={`treeitem-${node.id}`} sx={{ width: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 1, py: 1, px: 1 }}>
@@ -158,11 +160,13 @@ const TreeNode: React.FC<{ node: any; onEdit: any; onDelete: any; defaultExpandA
           <Stack direction="row" spacing={1}>
             <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onEdit(node); }}><EditIcon fontSize="small"/></IconButton>
             <IconButton size="small" onClick={(e)=>{ e.stopPropagation(); onDelete(node); }}><DeleteIcon fontSize="small"/></IconButton>
+            {/* render any caller-provided extra action controls (test playground uses this) */}
+            {extraActions ? extraActions(node) : null}
           </Stack>
         </Stack>
       </Box>
     )}>
-      {node.children.map((c:any)=> <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} />)}
+      {node.children.map((c:any)=> <TreeNode key={c.id} node={c} onEdit={onEdit} onDelete={onDelete} defaultExpandAll={defaultExpandAll} extraActions={extraActions} />)}
     </TreeItem>
   );
 };
