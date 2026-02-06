@@ -63,7 +63,9 @@ async function main() {
         continue;
       }
       try {
-        const mailOptions = { from: smtpUser, to: data.to, subject: data.subject, text: data.body };
+        // Allow overriding the sender display via SENDER_EMAIL env var, fallback to smtp user
+        const sender = process.env.SENDER_EMAIL || smtpUser || 'Team Process Wizard <no-reply@tpw.com>';
+        const mailOptions = { from: sender, to: data.to, subject: data.subject, text: data.body };
         if (data.bcc) mailOptions.bcc = data.bcc;
         await transporter.sendMail(mailOptions);
         await doc.ref.update({ status: 'sent', sentAt: admin.firestore.FieldValue.serverTimestamp(), error: null });
