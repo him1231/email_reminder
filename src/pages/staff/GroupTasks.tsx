@@ -58,17 +58,35 @@ export const GroupTasks: React.FC = () => {
     helpers.setSubmitting(true);
     try {
       if (!auth.currentUser) throw new Error('not-authenticated');
+
+      // Normalize client values so Firestore rules receive a consistent shape:
+      // - empty date string -> null
+      // - ensure `completed` is boolean
+      // - require a non-empty groupId (client should validate, but guard here too)
+      const payload: any = {
+        ...values,
+        dueDate: values.dueDate ? new Date(values.dueDate) : null,
+        completed: typeof values.completed === 'boolean' ? values.completed : false,
+      };
+
+      if (!payload.groupId) throw new Error('Group is required');
+
       if (editing) {
-        await updateDoc(doc(db, 'group_tasks', editing.id), { ...values, updatedAt: serverTimestamp() });
+        await updateDoc(doc(db, 'group_tasks', editing.id), { ...payload, updatedAt: serverTimestamp() });
         setSnack({ open: true, message: 'Task updated', severity: 'success' });
       } else {
-        await addDoc(collection(db, 'group_tasks'), { ...values, completed: false, createdBy: auth.currentUser.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        await addDoc(collection(db, 'group_tasks'), { ...payload, createdBy: auth.currentUser.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         setSnack({ open: true, message: 'Task created', severity: 'success' });
       }
       setFormOpen(false);
     } catch (err:any) {
       console.error(err);
-      setSnack({ open: true, message: err?.message || 'Save failed', severity: 'error' });
+      // surface permission errors with a clearer message for debugging
+      if (err?.code === 'permission-denied' || /permission/i.test(err?.message || '')) {
+        setSnack({ open: true, message: 'Permission denied — check group selection and authentication', severity: 'error' });
+      } else {
+        setSnack({ open: true, message: err?.message || 'Save failed', severity: 'error' });
+      }
     } finally {
       helpers.setSubmitting(false);
     }
@@ -140,7 +158,7 @@ export const GroupTasks: React.FC = () => {
         <Formik
           enableReinitialize
           initialValues={{ title: editing?.title || '', description: editing?.description || '', groupId: editing?.groupId || (groups[0]?.id || ''), dueDate: editing?.dueDate ? (editing.dueDate as any).toDate ? (editing.dueDate as any).toDate().toISOString().slice(0,10) : editing.dueDate : '' }}
-          validationSchema={Yup.object({ title: Yup.string().required('Required') })}
+          validationSchema={Yup.object({ title: Yup.string().required('Required'), groupId: Yup.string().required('Group is required') })}
           onSubmit={(vals, helpers) => saveTask(vals, helpers)}
         >
           {({ values, handleChange, isSubmitting }) => (
