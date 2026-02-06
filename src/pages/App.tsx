@@ -72,12 +72,17 @@ function Navigation() {
   if (isSmall) {
     return (
       <>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <IconButton onClick={() => setOpen(true)} aria-label="Open menu" sx={{ width: 48, height: 48 }}>
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6">Team Process Wizard (TPW)</Typography>
-        </Stack>
+        {/* Full-width header row: hamburger left, title center/left, keep single line */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+            <IconButton onClick={() => setOpen(true)} aria-label="Open menu" sx={{ width: 48, height: 48 }}>
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap sx={{ ml: 1, minWidth: 0 }}>
+              Team Process Wizard (TPW)
+            </Typography>
+          </Box>
+        </Box>
         <Drawer open={open} onClose={() => setOpen(false)}>
           <Box sx={{ width: 280, p: 2 }} role="presentation">
             <Typography variant="h6" sx={{ mb: 1 }}>Menu</Typography>
@@ -107,9 +112,10 @@ export const App: React.FC = () => {
   return (
     <HashRouter>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" mb={3} spacing={{ xs: 2, md: 0 }}>
+        {/* Keep header on a single row on mobile — prevent wrapping */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3} spacing={0} sx={{ flexWrap: 'nowrap' }}>
           <Navigation />
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flexShrink: 0 }}>
             <IconButton onClick={() => signOut()} aria-label="Sign out" sx={{ minWidth: 44, height: 44, px: 2 }}>
               <LogoutIcon />
             </IconButton>
